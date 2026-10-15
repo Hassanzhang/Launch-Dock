@@ -256,3 +256,14 @@
 ### 未覆盖与范围
 
 本轮未重复执行虚拟环境/进程集成测试，因为该实现未改；目录面板内选取路径及取消后的字段错误分支未单独点击验收。未覆盖 macOS 13 实机、深色及超长路径/大量错误的全窗口截图；macOS 13 保持构建目标，不将本机 macOS 26.2 结果冒充旧系统设备结果。本轮为未发布本地提交，无推送或标签。
+
+
+## 2026-10-15 · T-015 · 0.1.0 图标与版本登记
+
+- 用户提供的 1254×1254 PNG 原样复制为 Assets/AppIcon.png，SHA-256 比对一致；未裁切、重绘或替换图片内容。使用 sips 生成标准普通/Retina 图标，iconutil 成功打包；从最终 icns 解包检查得到 10 张预期尺寸图片，覆盖 16–1024px。
+- VERSION=0.1.0；实际 .app 的 CFBundleShortVersionString=0.1.0、CFBundleVersion=1、CFBundleIconFile=AppIcon。通过 NSWorkspace.icon(forFile:) 读取系统解析的应用图标并查看 128px 渲染结果，确认显示用户图片；未重启用户应用或刷新系统图标缓存。
+- `./scripts/build-app.sh` release 构建通过；codesign --verify --deep --strict、plutil -lint、bash -n 通过。构建使用原子替换可执行文件，不截断当前运行程序。
+- 本轮完整核心行为检查 `swift run LaunchDockChecks` 通过，包括配置、环境、实际解释器、日志、独立并发、重启、父子进程清理及无关进程保护；真实 uvicorn 集成因未设置 LAUNCHDOCK_UVICORN_FIXTURE 仍为 SKIP，不冒充通过。
+- `./scripts/check-project-editor.sh`、`./scripts/check-project-detail.sh` 和原生日志专项检查通过；尺寸结果与 T-014 一致。详情脚本的兼容 onChange 弃用警告仍存在，未引入服务/界面逻辑改动。
+- README、PRODUCT、DESIGN、DEVELOPMENT、TASKS、AGENTS 与 CHANGELOG 更新为当前 0.1.0 状态；历史轮次的未发布记录保留其当时事实。本地 commit 与注释标签 v0.1.0 登记版本，不创建 GitHub Release、不进行远端推送。
+- 未覆盖范围延续：用户实际业务完整验收、旧 macOS/Intel 设备、深色全窗口与可选 uvicorn 集成。Dock/Finder 若缓存旧图标，可在正常退出重开新 app 后核对；未强制退出用户当前应用。

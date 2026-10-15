@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-未发布 MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
+当前登记版本 **0.1.0**（build 1，本地标签 `v0.1.0`）。MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
 
 最低构建目标为 macOS 13；目前仅在 macOS 26.2 / Apple Silicon 验证，不声称已测试其他系统或架构。首版供用户自己的 Mac 使用，不提供公开分发、安装包或公证。
 
@@ -19,7 +19,7 @@
 open dist/LaunchDock.app
 ```
 
-脚本进行 release 构建、生成 `.app` 并进行本地 ad-hoc 签名。输出目录 `dist/` 和构建目录 `.build/` 不进入 Git；脚本不安装应用、不更改系统工具链、不发布版本。
+脚本读取 `VERSION`，进行 release 构建，将用户提供的 `Assets/AppIcon.png` 转为多尺寸 `.icns`，生成带版本与图标的 `.app` 并进行本地 ad-hoc 签名。输出目录 `dist/` 和构建目录 `.build/` 不进入 Git；脚本不安装应用、不更改系统工具链、不发布版本。
 
 ## 使用
 
@@ -86,4 +86,4 @@ LAUNCHDOCK_UVICORN_FIXTURE="$PWD/.build/check-project" swift run LaunchDockCheck
 | [CHANGELOG.md](CHANGELOG.md) | 未发布变化与后续发布记录 |
 | [AGENTS.md](AGENTS.md) | 语言、SOP 和 Git 协作约定 |
 
-本地仓库默认分支为 `main`，尚无正式发布版本或发布标签。
+本地仓库默认分支为 `main`；当前版本记录为 `0.1.0`，对应注释标签 `v0.1.0`。未创建 GitHub Release，不含公开分发或公证。

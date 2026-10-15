@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-未发布 MVP 已实现；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
+0.1.0 MVP 已实现；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
 
 工程使用 Swift Package，最低目标 macOS 13，Swift tools version 5.9。本机实际工具链为 Swift 6.2.3，macOS 26.2（25C56）、arm64、Command Line Tools SDK；未做最低目标系统和 Intel 实机验证。
 
@@ -101,7 +101,7 @@ T-011 保留原项目标题、编辑/删除与 LogPanel；T-012 已将灰色 Gro
 ## 构建与验证入口
 
 - `swift build`：debug 编译。
-- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；不设置正式发布版本。
+- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；读取 VERSION 写入显示版本，build 号为 1。
 - `swift run LaunchDockChecks`：无 XCTest 依赖的可执行行为检查，使用临时目录中的真实 Python 环境与进程。
 - 可选 uvicorn 集成检查入口和前置环境见 [README.md](README.md)。
 
@@ -122,3 +122,8 @@ ProjectEditor 保留原 candidate 和 Project.validate 数据契约。FocusState
 已有 grouped Form 使用 fixedSize(horizontal: false, vertical: true) 获得内容高度，去掉整个 Sheet 的固定高度；服务开关控制字段和草稿，切换不丢草稿。只增加 Field 枚举、focus/touched 视图状态，不更改持久化数据结构或进程层。
 
 `./scripts/check-project-editor.sh` 在隔离配置中实例化实际 NSHostingView，测量零/一/二服务内容尺寸；真实焦点、开关、取消及保存交互验收分别记录于 VALIDATION.md。
+
+
+## 图标与版本（T-015）
+
+VERSION 保存 0.1.0，构建脚本写入 CFBundleShortVersionString；CFBundleVersion 为 1。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
