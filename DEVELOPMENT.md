@@ -113,3 +113,12 @@ T-011 保留原项目标题、编辑/删除与 LogPanel；T-012 已将灰色 Gro
 ContentView 的 ServiceCardSurface 共用原生语义背景、0.5pt 分割线边框和 12pt 内边距，供服务及缺省卡片使用。卡片内部标题添加角色图标，PID 先转 String 防止 SwiftUI 本地化插入千分位；路径采用 12pt tertiary 样式。
 
 LogPanel 保留原 selection/following 绑定、复制与清空闭包；仅隐藏 picker 标签并缩短选项文案，使用带无障碍标签/提示的原生图标按钮和 button toggle。LogOutputView 与服务层不变。窗口最小内容尺寸改为 980×600，最大侧栏宽 320 时仍有空间横排两张卡；更窄的嵌入视口继续纵排兜底。
+
+
+## 项目表单交互与自适应（T-014）
+
+ProjectEditor 保留原 candidate 和 Project.validate 数据契约。FocusState 跟踪名称/各服务命令，失焦后将字段加入 touched；目录选择面板关闭后记录对应目录交互。错误只在 touched 且当前字段无效时显示；初始编辑已有项目也不提前报错。saveDisabledReason 复用 Project.validate，并纳入 busy/loadFailed，作为保存的禁用条件及 tooltip。实际保存仍通过 AppModel.save/ConfigurationStore 校验，取消直接 dismiss。
+
+已有 grouped Form 使用 fixedSize(horizontal: false, vertical: true) 获得内容高度，去掉整个 Sheet 的固定高度；服务开关控制字段和草稿，切换不丢草稿。只增加 Field 枚举、focus/touched 视图状态，不更改持久化数据结构或进程层。
+
+`./scripts/check-project-editor.sh` 在隔离配置中实例化实际 NSHostingView，测量零/一/二服务内容尺寸；真实焦点、开关、取消及保存交互验收分别记录于 VALIDATION.md。
