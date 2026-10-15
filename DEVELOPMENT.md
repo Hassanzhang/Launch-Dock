@@ -94,7 +94,7 @@ stdout/stderr 在管道入口合并，不标注输出流来源；显示内核读
 
 ContentView 的 ServiceStatusPresentation 仅负责状态文字/颜色：stopped 灰“已停止”、starting 黄“正在启动”、running 绿“运行中”、failed 红“启动失败”、stopping 黄“正在停止”。侧栏按每个配置服务 ID 读取快照，显示圆点与角色；卡片使用同一个映射，不再对项目状态做汇总，也不改变底层状态含义。
 
-右侧保留现有项目标题、灰色 GroupBox、编辑/删除与 LogPanel。仅用真实内容高度替换原卡片 ScrollView 的弹性 240pt 占位，GeometryReader 按实际宽度选择横排/纵排，并用 PreferenceKey 同步卡片实际高度。页边距 20pt、区块 16pt 不变，LogPanel 填满余下空间。与 T-010 相比，LogOutputView 与日志工具栏代码没有变化。
+T-011 保留原项目标题、编辑/删除与 LogPanel；T-012 已将灰色 GroupBox 替换为内部标题的服务卡片。仅用真实内容高度替换原卡片 ScrollView 的弹性 240pt 占位，GeometryReader 按实际宽度选择横排/纵排，并用 PreferenceKey 同步卡片实际高度。页边距 20pt、区块 16pt 不变，LogPanel 填满余下空间。T-011 未修改 LogOutputView 或工具栏；T-012 的局部样式调整见下。
 
 `./scripts/check-project-detail.sh` 在隔离配置、未展示的 NSWindow/NSHostingView 中检查真实详情布局、超长路径、缩放和各状态文字；不启动用户服务，不替代实际参考图视觉验收。
 
@@ -106,3 +106,10 @@ ContentView 的 ServiceStatusPresentation 仅负责状态文字/颜色：stopped
 - 可选 uvicorn 集成检查入口和前置环境见 [README.md](README.md)。
 
 实际测试结果、失败修复及未覆盖项见 [VALIDATION.md](VALIDATION.md)。
+
+
+## 卡片与日志工具栏精修（T-012）
+
+ContentView 的 ServiceCardSurface 共用原生语义背景、0.5pt 分割线边框和 12pt 内边距，供服务及缺省卡片使用。卡片内部标题添加角色图标，PID 先转 String 防止 SwiftUI 本地化插入千分位；路径采用 12pt tertiary 样式。
+
+LogPanel 保留原 selection/following 绑定、复制与清空闭包；仅隐藏 picker 标签并缩短选项文案，使用带无障碍标签/提示的原生图标按钮和 button toggle。LogOutputView 与服务层不变。窗口最小内容尺寸改为 980×600，最大侧栏宽 320 时仍有空间横排两张卡；更窄的嵌入视口继续纵排兜底。

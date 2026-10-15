@@ -130,6 +130,7 @@ struct ProjectDetail: View {
                 LogPanel(services: project.services, selection: Binding(get: { selectedService?.id ?? service.id }, set: { logSelection = $0 }), snapshot: runner.snapshot(for: service.id), clear: { runner.clearLog(service.id) })
             }
         }.padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Color(nsColor: .controlBackgroundColor))
     }
     @ViewBuilder private func cards(minimum: CGFloat) -> some View {
         ForEach(ServiceRole.allCases) { role in
@@ -138,11 +139,13 @@ struct ProjectDetail: View {
                     if runner.isActive(service.id) { runner.stop(service.id) } else { runner.start(service, projectDirectory: project.directory) }
                 }.frame(minWidth: minimum, maxWidth: .infinity)
             } else {
-                GroupBox(role.title) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Label(role.title, systemImage: role == .frontend ? "display" : "server.rack")
+                        .font(.system(size: 13, weight: .medium))
                     Button("添加\(role.title)…") { model.edit(project) }
                         .disabled(model.busy || model.loadFailed || project.services.contains { runner.isActive($0.id) })
                         .frame(maxWidth: .infinity, minHeight: 100)
-                }.frame(minWidth: minimum, maxWidth: .infinity)
+                }.modifier(ServiceCardSurface()).frame(minWidth: minimum, maxWidth: .infinity)
             }
         }
     }
@@ -179,6 +182,15 @@ struct ServiceStatusPresentation {
     }
 }
 
+private struct ServiceCardSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        content.padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 9))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+    }
+}
+
 private struct ServiceCard: View {
     let service: Service
     let snapshot: ServiceSnapshot
@@ -187,34 +199,34 @@ private struct ServiceCard: View {
     var action: () -> Void
     private var status: ServiceStatusPresentation { ServiceStatusPresentation(state: snapshot.state) }
     var body: some View {
-        GroupBox(service.role.title) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Label(status.title, systemImage: "circle.fill").foregroundStyle(status.color)
-                    if let pid = snapshot.pid { Text("PID \(pid)").font(.caption.monospaced()).foregroundStyle(.secondary) }
-                    Spacer(minLength: 0)
-                    if snapshot.state == .starting || snapshot.state == .stopping { ProgressView().controlSize(.small) }
-                    Button(active ? "停止" : "启动", action: action)
-                        .disabled(busy || snapshot.state == .starting || snapshot.state == .stopping)
-                        .accessibilityLabel("\(service.role.title)\(active ? "停止" : "启动")")
-                }
-                Text(service.command).font(.system(.body, design: .monospaced)).lineLimit(1).help(service.command).textSelection(.enabled)
-                Text(service.workingDirectory).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1).help(service.workingDirectory)
-                if let path = snapshot.environmentPath {
-                    Text("环境：\(path)").font(.system(.caption, design: .monospaced)).lineLimit(1).help(path)
-                }
-                if service.role == .frontend, snapshot.state == .running, let url = snapshot.browserURL {
-                    Link(destination: url) {
-                        Label("打开前端 · \(url.absoluteString)", systemImage: "arrow.up.right.square")
-                            .lineLimit(1).truncationMode(.middle)
-                    }.help(url.absoluteString)
-                        .accessibilityLabel("在浏览器打开前端：\(url.absoluteString)")
-                }
-                if let error = snapshot.error {
-                    Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                }
-            }.padding(6).frame(maxWidth: .infinity, alignment: .leading)
-        }
+        VStack(alignment: .leading, spacing: 10) {
+            Label(service.role.title, systemImage: service.role == .frontend ? "display" : "server.rack")
+                .font(.system(size: 13, weight: .medium))
+            HStack {
+                Label(status.title, systemImage: "circle.fill").foregroundStyle(status.color)
+                if let pid = snapshot.pid { Text("PID \(String(pid))").font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary) }
+                Spacer(minLength: 0)
+                if snapshot.state == .starting || snapshot.state == .stopping { ProgressView().controlSize(.small) }
+                Button(active ? "停止" : "启动", action: action)
+                    .disabled(busy || snapshot.state == .starting || snapshot.state == .stopping)
+                    .accessibilityLabel("\(service.role.title)\(active ? "停止" : "启动")")
+            }
+            Text(service.command).font(.system(size: 13, design: .monospaced)).lineLimit(1).help(service.command).textSelection(.enabled)
+            Text(service.workingDirectory).font(.system(size: 12, design: .monospaced)).foregroundStyle(.tertiary).lineLimit(1).help(service.workingDirectory)
+            if let path = snapshot.environmentPath {
+                Text("环境：\(path)").font(.system(size: 12, design: .monospaced)).foregroundStyle(.tertiary).lineLimit(1).help(path)
+            }
+            if service.role == .frontend, snapshot.state == .running, let url = snapshot.browserURL {
+                Link(destination: url) {
+                    Label("打开前端 · \(url.absoluteString)", systemImage: "arrow.up.right.square")
+                        .lineLimit(1).truncationMode(.middle)
+                }.help(url.absoluteString)
+                    .accessibilityLabel("在浏览器打开前端：\(url.absoluteString)")
+            }
+            if let error = snapshot.error {
+                Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            }
+        }.modifier(ServiceCardSurface())
     }
 }
 
@@ -228,12 +240,16 @@ private struct LogPanel: View {
         VStack(spacing: 0) {
             HStack {
                 Picker("服务日志", selection: $selection) {
-                    ForEach(services) { Text("\($0.role.title)日志").tag($0.id) }
-                }.pickerStyle(.segmented).frame(maxWidth: 230)
+                    ForEach(services) { Text($0.role.title).tag($0.id) }
+                }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 180)
                 Spacer(minLength: 8)
-                Toggle("跟随", isOn: $following).toggleStyle(.checkbox).help("取消勾选后暂停自动滚动")
-                Button("复制") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(snapshot.log.text, forType: .string) }.disabled(snapshot.log.text.isEmpty)
-                Button("清空", action: clear).disabled(snapshot.log.text.isEmpty)
+                Toggle(isOn: $following) { Image(systemName: "arrow.down.to.line") }
+                    .toggleStyle(.button).accessibilityLabel("自动跟随")
+                    .help(following ? "暂停自动跟随" : "开启自动跟随")
+                Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(snapshot.log.text, forType: .string) } label: { Image(systemName: "doc.on.doc") }
+                    .accessibilityLabel("复制日志").help("复制日志").disabled(snapshot.log.text.isEmpty)
+                Button(action: clear) { Image(systemName: "trash") }
+                    .accessibilityLabel("清空日志").help("清空日志").disabled(snapshot.log.text.isEmpty)
             }.font(.system(size: 13))
                 .padding(10)
                 .background(Color(nsColor: .windowBackgroundColor))

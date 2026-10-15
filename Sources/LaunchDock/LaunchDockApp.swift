@@ -8,7 +8,7 @@ struct LaunchDockApp: App {
     var body: some Scene {
         Window("LaunchDock", id: "main") {
             ContentView(model: model, runner: model.runner)
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 980, minHeight: 600)
                 .background(WindowReader { window in
                     window.isReleasedWhenClosed = false
                     delegate.window = window

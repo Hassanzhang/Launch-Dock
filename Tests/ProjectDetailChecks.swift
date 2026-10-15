@@ -64,6 +64,6 @@ struct ProjectDetailChecks {
         }
         window.close()
         guard failures == 0 else { print("FAIL \(failures) detail checks"); exit(1) }
-        print("PASS actual SwiftUI detail layout: original cards/toolbar, compact spacing, flexible log, long paths, narrow stacking and independent front/back status mapping")
+        print("PASS actual SwiftUI detail layout: compact titled cards, icon toolbar, compact spacing, flexible log, long paths, narrow stacking and independent front/back status mapping")
     }
 }

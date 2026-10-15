@@ -204,3 +204,21 @@
 黄色启动/停止瞬态通过映射测试覆盖，未人为延长生命周期或增加就绪检测。深色全窗口截图及用户真实业务项目运行未在本轮验收；早先原生连接失败记录仍为各历史轮次的实际情况，不再代表本轮状态。
 
 本轮未发布、无标签或远端推送；新 .app 需用户正常退出并重新打开生效。
+
+
+## 2026-10-15 · T-012 · 卡片与日志工具栏精修
+
+### 实现与实际检查
+
+- 修改 ContentView.swift：卡片及缺省卡片统一内部标题、角色 SF Symbol、12pt 内边距、9pt 圆角和 0.5pt separatorColor 边框；详情背景 controlBackgroundColor，卡片 textBackgroundColor，浅色白底并支持系统深色。工作目录与环境路径使用 12pt 等宽 tertiary 色，保留完整路径 tooltip。PID 先转 String，再用 12pt 等宽文本呈现。
+- 日志 segmented picker 隐藏可见标签并只显示角色名；自动跟随采用 button toggle，复制/清空使用图标，均有提示及无障碍标签；原绑定、动作及禁用条件保留。LaunchDockApp.swift 最小内容尺寸改为 980×600。
+- `./scripts/check-project-detail.sh` 通过：实际 SwiftUI/NSHostingView 布局，十段长路径样本；640×600 日志顶部 275.5、高 304.5，1000×900 顶部 275.5、高 604.5，500×800 纵排顶部 412.5、高 367.5；三档底边距均为 20pt，保留紧凑卡片占位和日志填充。五种独立服务状态颜色/文字检查通过。
+- 原生日志控件专项编译运行通过：空日志、多行与空白、12pt 字体/19.2pt 行高、超长行、2000 行、连续输出、跟随/暂停、切换、清空和视口缩放。
+- Debug 与 release 构建通过；本地 dist/LaunchDock.app 原子更新并 ad-hoc 重签名，codesign 严格验证及 Info.plist lint 通过。
+- Git 差异检查确认 LaunchDockCore、ProcessSupport、LogOutputView.swift 未改动；本轮不重复运行服务集成检查。
+
+### 实际限制与待验收
+
+原生自动化在绑定隔离 QA 应用时多次返回 `Computer Use server error -10005: timeoutReached`（连接超时）。因此未取得本轮真实窗口截图，未完成图标按钮点击、PID 最终渲染、浅深色视觉和整窗拖动缩放验收；原生控件/布局检查不能替代这些结果。隔离 QA 未启动测试服务，已停止本轮启动的 QA 进程。用户原应用及业务服务未操作。
+
+可正常退出后重开 dist/LaunchDock.app 查看新界面。本轮仅本地提交，不推送或发布。
