@@ -52,7 +52,7 @@ public struct ServiceSnapshot {
     public var pid: Int32?
     public var environmentPath: String?
     public var error: String?
-    public var exitDetail: String?
+    public var browserURL: URL?
     public var log = LogBuffer()
     public init() {}
 }
@@ -63,12 +63,13 @@ public final class ServiceRunner: ObservableObject {
     private final class Job {
         let pid: pid_t
         let fd: Int32
+        let role: ServiceRole
         var status: Int32?
         var outputEnded = false
         var stopRequested = false
         var deadline: Date?
         var killed = false
-        init(pid: pid_t, fd: Int32) { self.pid = pid; self.fd = fd }
+        init(pid: pid_t, fd: Int32, role: ServiceRole) { self.pid = pid; self.fd = fd; self.role = role }
     }
     private var jobs: [UUID: Job] = [:]
     private var timer: Timer?
@@ -93,7 +94,7 @@ public final class ServiceRunner: ObservableObject {
                 ld_spawn(service.workingDirectory, service.command, buffer.baseAddress!, &pid, &fd)
             }
             guard result == 0 else { throw DockError("posix_spawn: \(String(cString: strerror(result)))\n无法启动命令，请检查目录和权限。") }
-            jobs[service.id] = Job(pid: pid, fd: fd)
+            jobs[service.id] = Job(pid: pid, fd: fd, role: service.role)
             snapshots[service.id]?.state = .running
             snapshots[service.id]?.pid = pid
             snapshots[service.id]?.environmentPath = environment.directory
@@ -149,6 +150,7 @@ public final class ServiceRunner: ObservableObject {
     }
     private func beginStop(_ id: UUID, _ job: Job) {
         snapshots[id]?.state = .stopping
+        snapshots[id]?.browserURL = nil
         job.deadline = Date().addingTimeInterval(5)
         signal(job, SIGTERM)
     }
@@ -167,6 +169,9 @@ public final class ServiceRunner: ObservableObject {
     private func tick() {
         for (id, job) in Array(jobs) {
             drain(id, job)
+            if job.role == .frontend, snapshots[id]?.state == .running, snapshots[id]?.browserURL == nil {
+                snapshots[id]?.browserURL = frontendURL(in: snapshots[id]?.log.text ?? "")
+            }
             if job.status == nil {
                 var status: Int32 = 0
                 let result = waitpid(job.pid, &status, WNOHANG)
@@ -198,16 +203,13 @@ public final class ServiceRunner: ObservableObject {
         // The leader is reaped, its group is gone, and the output pipe has reached EOF.
         close(job.fd)
         snapshots[id]?.log.append(Data(), final: true)
-        let signalNumber = status & 0x7f
-        let exitCode = (status >> 8) & 0xff
-        let detail = signalNumber == 0 ? "Exit code: \(exitCode)" : "Signal: \(signalNumber)"
-        snapshots[id]?.exitDetail = detail
+        snapshots[id]?.browserURL = nil
         snapshots[id]?.pid = nil
         if job.stopRequested || status == 0 {
             snapshots[id]?.state = .stopped
         } else {
             snapshots[id]?.state = .failed
-            snapshots[id]?.error = detail + "\n命令异常结束，请查看日志中的原始错误。"
+            snapshots[id]?.error = "命令异常结束，请查看日志中的原始错误。"
         }
         jobs.removeValue(forKey: id)
     }

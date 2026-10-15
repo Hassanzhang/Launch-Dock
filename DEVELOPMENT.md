@@ -15,6 +15,7 @@
 | `Sources/LaunchDock/ProjectEditor.swift` | 配置表单、目录选择、即时校验 | F-001、F-002 / T-001 |
 | `Sources/LaunchDock/AppModel.swift` | 配置操作、编辑删除约束、正常退出清理与 Dock 重开 | F-007、F-008 / T-001、T-004 |
 | `Sources/LaunchDockCore/Configuration.swift` | Codable 模型、原子存储、环境检测 | F-001、F-002、F-004、F-008 / T-001、T-002 |
+| `Sources/LaunchDockCore/FrontendURL.swift` | 本地访问 URL 解析 | F-010 / T-009 |
 | `Sources/LaunchDockCore/ServiceRunner.swift` | 进程所有权、状态、停止、UTF-8 日志与容量限制 | F-003、F-005、F-006、F-007 / T-002、T-003、T-004 |
 | `Sources/ProcessSupport/ProcessSupport.c` | posix_spawn、独立进程组、工作目录与管道描述符 | F-003、F-007 / T-002、T-004 |
 
@@ -29,7 +30,7 @@
 | Configuration | `schemaVersion`（当前 1）、`projects`（数组顺序即手动排序） | 是 |
 | Project | `id`（UUID）、`name`、`directory`、`services` | 是 |
 | Service | `id`（UUID）、`role`（frontend/backend）、`workingDirectory`、`command` | 是 |
-| ServiceSnapshot / Job | 状态、PID、环境路径、错误、退出原因、日志、描述符与清理期限 | 否 |
+| ServiceSnapshot / Job | 状态、PID、环境路径、错误、前端访问 URL、日志、描述符与清理期限 | 否 |
 
 保存及读取时验证项目/服务 ID 不重复、名称非空、路径为绝对路径、角色唯一且至少一个服务、命令非空。目录无需隶属于项目目录；启动前重新检查其存在性。
 
@@ -65,6 +66,14 @@
 UTF-8 分块解码保留末尾不完整码点。每服务最多保留最近 2,000 行及 1 MiB（包括无换行长行），新启动清空旧缓冲；停止后可继续查看本次日志。
 
 stdout/stderr 在管道入口合并，不标注输出流来源；显示内核读到的合并顺序。每轮每服务最多读取 64 KiB，100ms 批次更新；这是 MVP 的有界主线程读取方案，很多高输出服务并发时仍需性能测量，出现明显卡顿再迁移 I/O。
+
+## 前端访问地址（T-009）
+
+`FrontendURL.swift` 从完整日志行提取 HTTP/HTTPS 本地地址，剥离 ANSI 控制序列；仅接受 localhost、127.0.0.1、IPv6 回环与通配监听地址，拒绝外站 URL、含凭据 URL 和无效端口。通配地址转换为 localhost。不在收到半个端口号时提前记录链接。
+
+受管进程仅为 frontend 角色且处于 running 时，将首次识别的地址存入本次 ServiceSnapshot.browserURL。清空日志不清除此地址；开始停止、进程结束或新一轮启动清除。服务卡片通过 SwiftUI Link 使用系统默认浏览器打开，不自动打开或发起健康检查。启动程序未输出适配地址时不展示链接。
+
+原 exitDetail 字段及 Signal/Exit code 格式化和展示已删除；异常退出只给出通用错误与原始程序日志。waitpid 状态仍用于正确回收、判定 stopped/failed，不作为可见退出码展示。
 
 ## 界面与配置操作
 

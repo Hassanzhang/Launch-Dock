@@ -106,8 +106,6 @@ private struct ProjectDetail: View {
                     VStack(spacing: 12) { cards(minimum: 0) }
                 }
             }.frame(maxHeight: 240)
-            Text("运行中仅表示进程已启动，不代表服务已就绪。")
-                .font(.caption).foregroundStyle(.secondary)
             if let service = selectedService {
                 LogPanel(services: project.services, selection: Binding(get: { selectedService?.id ?? service.id }, set: { logSelection = $0 }), snapshot: runner.snapshot(for: service.id), clear: { runner.clearLog(service.id) })
             }
@@ -154,7 +152,13 @@ private struct ServiceCard: View {
                 if let path = snapshot.environmentPath {
                     Text("环境：\(path)").font(.system(.caption, design: .monospaced)).lineLimit(1).help(path)
                 }
-                if let detail = snapshot.exitDetail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                if service.role == .frontend, snapshot.state == .running, let url = snapshot.browserURL {
+                    Link(destination: url) {
+                        Label("打开前端 · \(url.absoluteString)", systemImage: "arrow.up.right.square")
+                            .lineLimit(1).truncationMode(.middle)
+                    }.help(url.absoluteString)
+                        .accessibilityLabel("在浏览器打开前端：\(url.absoluteString)")
+                }
                 if let error = snapshot.error {
                     Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                 }

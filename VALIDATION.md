@@ -121,3 +121,16 @@
 - 构建与产物：`swift build -c release --product LaunchDock` 通过；原子替换本地 dist/LaunchDock.app 可执行文件并进行 ad-hoc 重签名，`codesign --verify --deep --strict` 和 `plutil -lint` 通过。
 - 未覆盖：未运行用户的 npm 项目启动脚本、未安装依赖、未重启当前应用或服务，原生 UI 操作仍待人工验收；本轮没有运行可选 uvicorn 专项。nvm/fnm/asdf 等依赖初始化脚本的环境不在本次 Homebrew 路径修复覆盖范围。
 - 本轮为未发布修复，提交以 T-008 检索，无版本或标签操作。
+
+
+## 2026-10-15 · T-009 · 删除运行详情与前端浏览器链接
+
+- 删除：ServiceSnapshot.exitDetail、退出码/信号的格式化与独立展示、就绪说明文案。保留 waitpid 回收与失败判定，不移除受管进程清理。
+- 新增：从前端本次完整日志行提取本地 HTTP/HTTPS URL，在运行中的前端卡片使用原生 SwiftUI Link 调用默认浏览器；不自动打开、不新增健康检查。
+- 自动检查：`swift run LaunchDockChecks` 通过，最终输出 `PASS all behavioral checks`；URL 样本覆盖 Vite 彩色输出、跨批次端口、IPv4、IPv6、通配地址、外站/凭据/无效端口拒绝。真实临时 Python 进程输出 Vite 格式样本（不是实际 Vite 应用），验证仅前端记录链接、清空日志保留、停止/重启/异常退出清除地址；其余配置、环境与进程清理回归通过。
+- 编译与打包：`swift build --product LaunchDock`、`swift build -c release --product LaunchDock` 通过；原子替换本地 dist/LaunchDock.app 二进制并重签名，codesign 严格校验及 Info.plist 检查通过。
+- 静态核对：Sources/Tests 中不再有 exitDetail、Signal:/Exit code: 展示字符串和旧免责声明；Markdown 链接、需求/任务 ID 与 Git 空白检查通过。
+- UI 限制：原生自动化再次返回 `Sky Computer Use native pipe closed before response`，无法操作新 Link 或取得截图；真实默认浏览器打开、浅深色和布局效果待人工验收。用户提供的截图作为修改前参照，未冒充修改后结果。
+- 本轮未启动或停止用户业务服务、未重启当前应用；需用户正常退出并打开新 .app 生效。启动程序未输出完整、受支持的本地地址时不展示链接。
+- Impeccable context 与 craft-floor 用于保留现有原生界面风格；本轮为 SwiftUI 原生界面，不执行仅针对 Web 的机械检测，不迁移无关设计文档 schema。
+- 本轮为未发布变更，无标签、推送或发布；提交以 T-009 检索。

@@ -32,10 +32,12 @@ struct Checks {
         try config.testConfigurationRoundTripAndCorruptionPreservation()
         try config.testRejectsInvalidAndDuplicateConfiguration()
         config.testLogUTF8AndBounds()
+        config.testFrontendURLs()
         print("PASS configuration, corruption, validation, UTF-8 and log bounds")
         let process = ProcessChecks()
         try process.testEnvironmentPriorityMissingAndBroken()
         try await process.testProjectRootEnvironmentFallback()
+        try await process.testFrontendLinkLifecycle()
         try await process.testHomebrewCommandsWithMinimalPath()
         try await process.testActualEnvironmentLogsAndNormalExit()
         try await process.testNonzeroAndMissingEnvironment()
@@ -85,6 +87,19 @@ final class ConfigurationChecks {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try Data("{\"schemaVersion\":2,\"projects\":[]}".utf8).write(to: store.url)
         expectThrows(try store.load())
+    }
+    func testFrontendURLs() {
+        expectEqual(frontendURL(in: "Local: http://localhost:5173/\n")?.absoluteString, "http://localhost:5173/")
+        expectEqual(frontendURL(in: "\u{001B}[32m➜ Local: \u{001B}[36mhttp://localhost:5174/\u{001B}[0m\n")?.port, 5174)
+        expectEqual(frontendURL(in: "Ready: https://127.0.0.1:8443/app?q=1\n")?.scheme, "https")
+        expectEqual(frontendURL(in: "Ready: http://[::1]:3000/\n")?.port, 3000)
+        expectEqual(frontendURL(in: "Ready: http://0.0.0.0:3000/\n")?.host, "localhost")
+        expectEqual(frontendURL(in: "Ready: http://[::]:3000/\n")?.host, "localhost")
+        expect(frontendURL(in: "Local: http://localhost:5") == nil)
+        for text in ["https://example.com/", "http://localhost.evil:5173/", "http://user:pass@localhost:5173/", "file:///tmp/test", "http://localhost:99999/"] {
+            expect(frontendURL(in: text + "\n") == nil)
+        }
+        expectEqual(frontendURL(in: "Docs: https://vite.dev/\nLocal: http://localhost:5173/\n")?.host, "localhost")
     }
     func testLogUTF8AndBounds() {
         var log = LogBuffer()
@@ -197,6 +212,41 @@ final class ProcessChecks {
         print("Checked real npm/node lookup with PATH=" + (ProcessInfo.processInfo.environment["PATH"] ?? "<unset>"))
     }
 
+    func testFrontendLinkLifecycle() async throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try write("import sys,time\nsys.stdout.write('Local: http://localhost:5'); sys.stdout.flush()\ntime.sleep(0.5)\nprint('173/',flush=True)\ntime.sleep(120)", to: root)
+        let runner = ServiceRunner()
+        let frontend = Service(role: .frontend, workingDirectory: root.path, command: "python app.py")
+        runner.start(frontend)
+        let partial = await wait { runner.snapshot(for: frontend.id).log.text.contains("http://localhost:5") }
+        expect(partial)
+        expect(runner.snapshot(for: frontend.id).browserURL == nil)
+        let found = await wait { runner.snapshot(for: frontend.id).browserURL != nil }
+        expect(found)
+        expectEqual(runner.snapshot(for: frontend.id).browserURL?.absoluteString, "http://localhost:5173/")
+        runner.clearLog(frontend.id)
+        expect(runner.snapshot(for: frontend.id).browserURL != nil)
+        runner.stop(frontend.id)
+        expect(runner.snapshot(for: frontend.id).browserURL == nil)
+        let stopped = await wait { !runner.isActive(frontend.id) }; expect(stopped)
+        let backend = service(root)
+        runner.start(backend)
+        let backendPrinted = await wait { runner.snapshot(for: backend.id).log.text.contains("5173") }
+        expect(backendPrinted)
+        expect(runner.snapshot(for: backend.id).browserURL == nil)
+        let clean = await runner.stopAll(); expect(clean)
+        try write("import time\ntime.sleep(120)", to: root)
+        runner.start(frontend)
+        expect(runner.snapshot(for: frontend.id).browserURL == nil)
+        let restarted = await runner.stopAll(); expect(restarted)
+        try write("print('Local: http://localhost:5173/',flush=True)\nraise RuntimeError('test failure')", to: root)
+        runner.start(frontend)
+        let failed = await wait { !runner.isActive(frontend.id) }; expect(failed)
+        expectEqual(runner.snapshot(for: frontend.id).state, .failed)
+        expect(runner.snapshot(for: frontend.id).browserURL == nil)
+        print("PASS frontend link parsing, partial output, log clearing, stop, restart and failure")
+    }
+
     func testActualEnvironmentLogsAndNormalExit() async throws {
         let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try write("import sys, os\nprint(sys.executable)\nprint(os.environ['VIRTUAL_ENV'])\nprint('中文🙂', file=sys.stderr)\n", to: root)
@@ -249,7 +299,7 @@ final class ProcessChecks {
         runner.start(signaled)
         let exited = await wait { !runner.isActive(signaled.id) }; expect(exited)
         expectEqual(runner.snapshot(for: signaled.id).state, .failed)
-        expectEqual(runner.snapshot(for: signaled.id).exitDetail, "Signal: 15")
+        expect(runner.snapshot(for: signaled.id).error != nil)
         try write("import sys\nprint('x'*2200000)\nprint('END',file=sys.stderr)", to: root)
         let noisy = service(root)
         runner.start(noisy)
