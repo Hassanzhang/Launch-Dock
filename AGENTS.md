@@ -12,7 +12,7 @@
 - LaunchDock 是面向 macOS 的项目启动坞，帮助用户通过按钮启动本地项目的前端和后端。
 - 首版范围已收敛为本地 Python 项目，采用原生 `SwiftUI + Foundation`；Docker 是操作体验参考，Docker/Compose、npm/pnpm、Java 支持不在首版范围。
 - 已确认需求与验收标准以 [PRODUCT.md](PRODUCT.md) 为唯一产品基线；技术方案见 [DEVELOPMENT.md](DEVELOPMENT.md)，执行状态见 [TASKS.md](TASKS.md)。
-- 当前处于设计文档阶段，尚无应用实现；首版供用户自己的 Mac 使用，以可构建运行的 `.app` 为交付目标。最低 macOS 版本、构建入口和发布版本尚未确定。
+- 当前已有未发布 MVP 实现；首版供用户自己的 Mac 使用，构建入口为 `./scripts/build-app.sh`，输出 `dist/LaunchDock.app`。最低构建目标为 macOS 13，实际验证范围见 VALIDATION.md；尚未登记发布版本。
 - 不把方案建议写成已确认需求，不把规划功能写成已实现功能。
 
 ## 开发 SOP 与文档职责

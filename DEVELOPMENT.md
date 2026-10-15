@@ -1,87 +1,80 @@
-# 技术设计
+# 技术设计与实现
 
-## 状态与已选技术
+## 当前状态
 
-这是未发布 MVP 的设计方案，尚无代码实现。需求基线见 [PRODUCT.md](PRODUCT.md)，任务状态见 [TASKS.md](TASKS.md)。
+未发布 MVP 已实现；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
 
-已确认采用原生 `SwiftUI + Foundation`，首版仅在用户自己的 Mac 上运行。无需 Web 服务、数据库或第三方进程管理框架。
+工程使用 Swift Package，最低目标 macOS 13，Swift tools version 5.9。本机实际工具链为 Swift 6.2.3，macOS 26.2（25C56）、arm64、Command Line Tools SDK；未做最低目标系统和 Intel 实机验证。
 
-2026-10-15 只读环境检查：macOS 26.2（25C56）、arm64；`xcode-select -p` 指向 `/Library/Developer/CommandLineTools`。该结果不能证明安装了完整 Xcode，也不能证明 `.app` 已能构建。最低 macOS 版本、Swift/SDK 版本、工程形式和构建入口由 T-001 检查后确定。
+## 模块
 
-## 模块与职责
-
-| 模块 | 职责 | 对应需求 |
+| 位置 | 职责 | 需求/任务 |
 | --- | --- | --- |
-| SwiftUI 界面 | 项目列表、配置表单、服务操作区、日志区及错误反馈 | F-001、F-002、F-009 |
-| 配置存储 | 校验与保存项目配置，启动时恢复 | F-001、F-008 |
-| 环境解析 | 定位虚拟环境、检查可执行 Python、生成子进程环境 | F-004 |
-| 服务运行管理 | 启动、停止、状态迁移及进程组所有权 | F-003、F-006、F-007 |
-| 日志缓冲 | 异步读取 stdout/stderr、限量存储、批量更新界面 | F-005 |
-| 应用生命周期 | 关闭窗口保活、重新打开窗口、正常退出前清理 | F-007 |
+| `Sources/LaunchDock/LaunchDockApp.swift` | 单窗口 SwiftUI 入口、窗口捕获、添加项目菜单 | F-007、F-009 / T-001、T-004 |
+| `Sources/LaunchDock/ContentView.swift` | 侧栏、拖拽排序、卡片、日志、删除确认 | F-003、F-005、F-009 / T-001、T-003、T-004 |
+| `Sources/LaunchDock/ProjectEditor.swift` | 配置表单、目录选择、即时校验 | F-001、F-002 / T-001 |
+| `Sources/LaunchDock/AppModel.swift` | 配置操作、编辑删除约束、正常退出清理与 Dock 重开 | F-007、F-008 / T-001、T-004 |
+| `Sources/LaunchDockCore/Configuration.swift` | Codable 模型、原子存储、环境检测 | F-001、F-002、F-004、F-008 / T-001、T-002 |
+| `Sources/LaunchDockCore/ServiceRunner.swift` | 进程所有权、状态、停止、UTF-8 日志与容量限制 | F-003、F-005、F-006、F-007 / T-002、T-003、T-004 |
+| `Sources/ProcessSupport/ProcessSupport.c` | posix_spawn、独立进程组、工作目录与管道描述符 | F-003、F-007 / T-002、T-004 |
 
-这些是逻辑职责，不要求各自创建协议、框架或复杂分层。界面状态在主线程更新，I/O 和进程等待不阻塞主线程。
+以上为小规模直接实现，不引入数据库、Web 服务或额外架构框架。
 
-## 配置与运行数据
+## 配置契约
 
-设计使用 `Codable` JSON，拟存于用户 Application Support 下的 `LaunchDock/projects.json`，通过系统 API 获取路径，写入采用原子替换。此位置尚未创建。
+使用系统 Application Support 路径下的 `LaunchDock/projects.json`，UTF-8 JSON 原子替换写入。可通过开发用环境变量 `LAUNCHDOCK_CONFIG_PATH` 隔离文件。
 
 | 对象 | 字段 | 持久化 |
 | --- | --- | --- |
-| 配置根对象 | `schemaVersion`、`projects` | 是；初始 schemaVersion 为 1，不代表应用发布版本 |
-| 项目 | `id`（UUID）、`name`、`directory`、`services` | 是 |
-| 服务 | `id`（UUID）、`role`（frontend/backend）、`workingDirectory`、`command` | 是 |
-| 服务运行记录 | 本次运行 ID、状态、进程/进程组标识、退出原因、日志缓冲 | 否 |
+| Configuration | `schemaVersion`（当前 1）、`projects`（数组顺序即手动排序） | 是 |
+| Project | `id`（UUID）、`name`、`directory`、`services` | 是 |
+| Service | `id`（UUID）、`role`（frontend/backend）、`workingDirectory`、`command` | 是 |
+| ServiceSnapshot / Job | 状态、PID、环境路径、错误、退出原因、日志、描述符与清理期限 | 否 |
 
-路径使用目录选择器选取并存储为绝对路径，首版不要求服务目录必须是项目目录的子目录。保存时验证必填字段、服务角色唯一且至少存在一个服务；启动时重新检查目录与环境是否仍可用。
+保存及读取时验证项目/服务 ID 不重复、名称非空、路径为绝对路径、角色唯一且至少一个服务、命令非空。目录无需隶属于项目目录；启动前重新检查其存在性。
 
-配置损坏、无权限或不支持的 schemaVersion 应明确报错，保留原文件，不静默覆盖为空配置。该异常路径纳入 T-001 验证。不主动采集密钥或保存整个宿主环境；用户自行写入命令的内容属于本机明文配置。
+读取损坏文件、未知 schemaVersion 或权限失败时，不覆盖原文件；界面本次禁止修改配置。保存失败保持内存中的旧配置。重新打开恢复配置，运行状态从停止开始。命令本身按明文保存，宿主环境与日志不写入配置。
 
-## Python 环境与命令执行（T-002）
+## Python 环境与命令
 
-以下为建议实施默认值，尚待实现验证：
+1. 按 `.venv`、`venv` 顺序查找服务工作目录，首个命中环境的 `bin/python` 必须可执行；损坏时不继续回退。
+2. 继承应用进程环境，将环境 `bin` 放在 PATH 首位，设置 VIRTUAL_ENV 和 PYTHONUNBUFFERED=1，移除 PYTHONHOME。
+3. 通过固定 `/bin/zsh -f -c` 执行用户命令；工作目录由 spawn file action 设置，目录不拼接进 shell 命令。
+4. stdin 指向 `/dev/null`，stdout/stderr 合并进入同一非阻塞管道；不提供 PTY 或交互输入。
 
-1. 在服务工作目录内按 `.venv`、`venv` 的顺序查找；两者都存在时优先 `.venv`，在界面显示实际路径。
-2. 检查所选环境的 `bin/python` 存在且可执行；首个命中环境损坏时报告错误，不静默改用另一个环境或系统 Python。
-3. 设置子进程 `VIRTUAL_ENV`，将环境 `bin` 放在 `PATH` 首位，移除可能冲突的 `PYTHONHOME`，设置 `PYTHONUNBUFFERED=1`。
-4. 其余环境继承应用进程；不承诺读取交互式终端的初始化配置，不依赖用户执行 `activate`。
-5. 通过固定 `/bin/zsh -c` 执行用户填写的命令，工作目录单独设置；路径不拼接进命令文本。支持 shell 命令语法，但不提供交互式终端或 PTY。
+`-f` 禁用普通用户 shell 启动配置，不承诺与交互终端一致。支持前台非交互 Python 命令；不支持 `&`、nohup、daemon 或主动脱离受管进程组的程序。绝对解释器路径和命令内覆盖变量可绕过虚拟环境设置，用户需自行保证命令使用选定环境。
 
-典型命令为 `python app.py`、`python -m uvicorn main:app --reload`。如果用户填写绝对解释器路径、命令中覆写环境或自行后台化，则可能绕过虚拟环境选择或进程跟踪；首版面向前台持续运行命令，不支持 `&`、`nohup`、daemon 模式或脱离受管进程组的程序。
+## 进程所有权、状态与退出
 
-环境缺失、目录不存在、权限错误和依赖缺失均反馈原始错误及中文说明；不自动安装或修复。Python 无缓冲设置可改善日志及时性，但无法保证第三方程序立即刷新输出。
+采用 `posix_spawn` 是因为普通 Foundation Process 不能提供这里所需的原子独立进程组创建契约。C 封装通过 `POSIX_SPAWN_SETPGROUP`、pgroup=0 在启动时建立以子 PID 为组号的独立进程组，同时设置目录、信号默认值、信号掩码和描述符继承边界。
 
-## 进程状态与停止（T-002、T-004）
+运行管理器在 MainActor 上维护每个服务唯一 Job；定时器每 100ms 检查非阻塞管道和 `waitpid(WNOHANG)`，不会同步等待子进程。启动/停止状态锁定重复操作；旧 Job 完全回收前不允许启动新实例。
 
-内部状态拟为 `stopped → starting → running → stopping → stopped`，失败进入 `failed`。用户界面将稳定状态表达为已停止、运行中、异常退出，并显示启动/停止中的过渡反馈。
+- 内部状态：stopped、starting、running、stopping、failed；运行中只表示受管命令进程启动成功。
+- 正常零退出为已停止；非零或意外信号退出为异常退出；主动停止不显示异常。
+- 停止向受管进程组发送 SIGTERM，5 秒仍存在则 SIGKILL，再等待清理；只操作本次启动并跟踪的有效组，拒绝自身组和非法组号。
+- 组长已退出而子进程仍存在时保留 Job 并清理子进程；组长回收、进程组消失且输出管道 EOF 后才最终结束，避免丢失尾部日志。
+- 清理超时保留记录并提示错误，禁止声称已停止；退出清理失败时取消应用退出。
 
-- 原子地占用服务启动状态，阻止双击重复启动；运行操作以服务 ID 和本次运行 ID 关联，避免旧回调污染新进程。
-- `running` 仅表示受管命令进程已启动，不能标为已就绪。
-- 正常零退出归为已停止；非零退出或非用户请求的信号终止归为异常退出。主动停止不因退出信号而显示异常。
-- 每次启动应建立独立受管进程组，以覆盖 shell、Python 及 `uvicorn --reload` 子进程。不能仅终止父进程 PID。
-- 优先评估 Foundation `Process`；若无法可靠、无竞态地建立独立进程组，则使用最小 Darwin/POSIX 启动封装。具体 API、描述符继承与进程组建立顺序需在 T-002 实测，不把普通 `Process.terminate()` 视为完整清理方案。
-- 停止时向本次运行的受管进程组发送 `SIGTERM`；建议等待最多 5 秒，仍存在则发送 `SIGKILL`，确认清理后再允许重启。组长已退出但子进程仍存在时继续跟踪清理。
-- 只控制本应用实际启动并维护所有权的进程；不按端口查杀、不使用模糊命令匹配。必须验证组标识有效，避免误向自身或无关进程发信号。
+关闭窗口不退出应用；捕获的 NSWindow 保留供 Dock 重开。正常应用退出返回 terminateLater，清理成功后回复系统继续退出。强制退出、崩溃、断电不保证清理；不支持接管遗留进程。
 
-## 日志（T-003）
+## 日志与性能边界
 
-并发消费 stdout/stderr，处理跨读取边界的 UTF-8 内容；两条输出流不承诺严格的全局顺序。建议每服务保留最近 2,000 行，且总缓冲不超过 1 MiB，包含无换行长输出的截断处理；界面按批次刷新。
+UTF-8 分块解码保留末尾不完整码点。每服务最多保留最近 2,000 行及 1 MiB（包括无换行长行），新启动清空旧缓冲；停止后可继续查看本次日志。
 
-每次启动创建新的缓冲；服务停止后保留该次缓冲直到再次启动、清空或应用退出。复制和清空日志作为轻量操作设计，不增加磁盘归档。自动跟随滚动应允许用户暂停查看旧内容。
+stdout/stderr 在管道入口合并，不标注输出流来源；显示内核读到的合并顺序。每轮每服务最多读取 64 KiB，100ms 批次更新；这是 MVP 的有界主线程读取方案，很多高输出服务并发时仍需性能测量，出现明显卡顿再迁移 I/O。
 
-## 界面与应用生命周期（T-001、T-004）
+## 界面与配置操作
 
-- 左侧项目列表，右侧项目详情；日志通过服务选择切换，主界面不为每个服务另开窗口。
-- 使用 macOS 原生控件、系统字体及浅色/深色适配；状态同时使用文字和颜色，操作支持键盘和明确焦点。
-- 建议支持配置编辑和项目删除；运行中的服务配置禁止修改，删除运行中的项目需确认并先停止相关服务。这些属于配置管理默认交互，不增加跨项目批量操作。
-- 关闭最后一个窗口不退出应用，保留 Dock 入口；点击 Dock 可重新打开窗口。不新增菜单栏常驻功能。
-- 正常退出时暂缓终止应用，完成所有受管进程组清理后退出；清理失败时不能无提示地声称全部停止。
-- 无法保证强制退出、应用崩溃、系统断电时执行清理；首版不承诺下次接管。该限制需在实际使用说明中保留。
+按 DESIGN.md 使用 NavigationSplitView、原生控件、SF Symbols、系统字体与语义颜色。卡片空间不足纵向排列；错误保留原文和中文解释；日志支持服务切换、跟随暂停、复制及清空。
 
-## 实施前仍需验证
+运行中的项目暂时禁止编辑整个配置；删除需确认，先清理该项目服务再保存配置删除，不删除项目文件。排序使用原生 List onMove 持久化数组顺序，同时提供右键上移/下移供键盘操作。真实界面操作、浅深色及布局验收因自动化连接失败尚未完成。
 
-- 本机 Swift/SDK、完整 Xcode 是否必要、最低系统版本及本地 `.app` 构建方式。
-- 非沙盒本地开发应用的目录与子进程访问；首版不以 App Store 沙盒或公开分发为目标。
-- 受管进程组创建、reload 子进程清理、强制停止与正常退出的可靠性。
-- 中文及带空格路径、损坏环境、配置错误、持续大日志和多个项目的真实行为。
+## 构建与验证入口
 
-尚无实际构建或运行命令。验证计划见 [VALIDATION.md](VALIDATION.md)，实现后再补充实际入口与证据。
+- `swift build`：debug 编译。
+- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；不设置正式发布版本。
+- `swift run LaunchDockChecks`：无 XCTest 依赖的可执行行为检查，使用临时目录中的真实 Python 环境与进程。
+- 可选 uvicorn 集成检查入口和前置环境见 [README.md](README.md)。
+
+实际测试结果、失败修复及未覆盖项见 [VALIDATION.md](VALIDATION.md)。
