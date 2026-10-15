@@ -117,7 +117,7 @@ private struct ProjectDetail: View {
         ForEach(ServiceRole.allCases) { role in
             if let service = project.services.first(where: { $0.role == role }) {
                 ServiceCard(service: service, snapshot: runner.snapshot(for: service.id), active: runner.isActive(service.id), busy: model.busy) {
-                    if runner.isActive(service.id) { runner.stop(service.id) } else { runner.start(service) }
+                    if runner.isActive(service.id) { runner.stop(service.id) } else { runner.start(service, projectDirectory: project.directory) }
                 }.frame(minWidth: minimum, maxWidth: .infinity)
             } else {
                 GroupBox(role.title) {

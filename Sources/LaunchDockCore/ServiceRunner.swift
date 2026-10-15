@@ -77,13 +77,13 @@ public final class ServiceRunner: ObservableObject {
     public func isActive(_ id: UUID) -> Bool { jobs[id] != nil }
     public var hasActiveServices: Bool { !jobs.isEmpty }
 
-    public func start(_ service: Service) {
+    public func start(_ service: Service, projectDirectory: String? = nil) {
         guard jobs[service.id] == nil else { return }
         snapshots[service.id] = ServiceSnapshot()
         snapshots[service.id]?.state = .starting
         do {
             guard !service.command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw DockError("Empty command\n启动命令不能为空。") }
-            let environment = try PythonEnvironment.resolve(at: service.workingDirectory)
+            let environment = try PythonEnvironment.resolve(at: service.workingDirectory, projectDirectory: projectDirectory)
             let strings = environment.variables.sorted { $0.key < $1.key }.map { strdup("\($0.key)=\($0.value)") }
             defer { strings.forEach { free($0) } }
             var envp = strings + [nil]

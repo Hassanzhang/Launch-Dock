@@ -46,7 +46,7 @@ struct ProjectEditor: View {
                     }
                 }
                 if enabled.isEmpty { hint("至少配置一个服务才能保存。") }
-                Text("请提前准备工作目录下的 .venv 或 venv，并安装依赖。仅支持前台非交互命令，请勿使用 &、nohup 或 daemon 模式。")
+                Text("请提前在服务工作目录或项目根目录准备 .venv 或 venv，并安装依赖。仅支持前台非交互命令，请勿使用 &、nohup 或 daemon 模式。")
                     .font(.caption).foregroundStyle(.secondary)
             }.formStyle(.grouped)
             Divider()

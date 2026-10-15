@@ -80,14 +80,21 @@ public struct ConfigurationStore {
 public struct PythonEnvironment {
     public let directory: String
     public let variables: [String: String]
-    public static func resolve(at workingDirectory: String) throws -> PythonEnvironment {
+    public static func resolve(at workingDirectory: String, projectDirectory: String? = nil) throws -> PythonEnvironment {
         let fm = FileManager.default
         var isDirectory: ObjCBool = false
         guard fm.fileExists(atPath: workingDirectory, isDirectory: &isDirectory), isDirectory.boolValue else {
             throw DockError("Working directory not found: \(workingDirectory)\n服务工作目录不存在或不是文件夹。")
         }
-        for name in [".venv", "venv"] {
-            let path = URL(fileURLWithPath: workingDirectory).appendingPathComponent(name).path
+        var directories = [URL(fileURLWithPath: workingDirectory).standardizedFileURL]
+        if let projectDirectory {
+            let root = URL(fileURLWithPath: projectDirectory).standardizedFileURL
+            if !directories.contains(root) { directories.append(root) }
+        }
+        let candidates = directories.flatMap { directory in
+            [".venv", "venv"].map { directory.appendingPathComponent($0).path }
+        }
+        for path in candidates {
             guard fm.fileExists(atPath: path) else { continue }
             guard fm.isExecutableFile(atPath: path + "/bin/python") else {
                 throw DockError("Invalid Python environment: \(path)/bin/python\n所选虚拟环境缺少可执行的 Python，请先修复；不会回退到其他环境。")
@@ -99,6 +106,6 @@ public struct PythonEnvironment {
             variables["PYTHONUNBUFFERED"] = "1"
             return PythonEnvironment(directory: path, variables: variables)
         }
-        throw DockError("Python environment not found: \(workingDirectory)/{.venv,venv}\n请先在工作目录创建 .venv 或 venv 并安装依赖。")
+        throw DockError("Python environment not found:\n" + candidates.joined(separator: "\n") + "\n请先在服务工作目录或项目根目录创建 .venv 或 venv 并安装依赖。")
     }
 }

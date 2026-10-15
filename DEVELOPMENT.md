@@ -37,12 +37,14 @@
 
 ## Python 环境与命令
 
-1. 按 `.venv`、`venv` 顺序查找服务工作目录，首个命中环境的 `bin/python` 必须可执行；损坏时不继续回退。
+1. 先查找服务工作目录的 `.venv`、`venv`，都不存在时再查找配置的项目根目录的 `.venv`、`venv`；同目录去重，不向任意上级目录递归搜索。首个命中环境的 `bin/python` 必须可执行；损坏时不继续回退。命令仍在服务工作目录执行。
 2. 继承应用进程环境，将环境 `bin` 放在 PATH 首位，设置 VIRTUAL_ENV 和 PYTHONUNBUFFERED=1，移除 PYTHONHOME。
 3. 通过固定 `/bin/zsh -f -c` 执行用户命令；工作目录由 spawn file action 设置，目录不拼接进 shell 命令。
 4. stdin 指向 `/dev/null`，stdout/stderr 合并进入同一非阻塞管道；不提供 PTY 或交互输入。
 
 `-f` 禁用普通用户 shell 启动配置，不承诺与交互终端一致。支持前台非交互 Python 命令；不支持 `&`、nohup、daemon 或主动脱离受管进程组的程序。绝对解释器路径和命令内覆盖变量可绕过虚拟环境设置，用户需自行保证命令使用选定环境。
+
+启动入口 `ServiceRunner.start(_:projectDirectory:)` 将配置的项目根目录传给环境解析器；该参数不修改服务工作目录，也不增加配置字段或迁移。查找失败列出全部候选路径，便于检查项目根目录配置。
 
 ## 进程所有权、状态与退出
 

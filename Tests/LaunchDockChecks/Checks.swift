@@ -35,6 +35,7 @@ struct Checks {
         print("PASS configuration, corruption, validation, UTF-8 and log bounds")
         let process = ProcessChecks()
         try process.testEnvironmentPriorityMissingAndBroken()
+        try await process.testProjectRootEnvironmentFallback()
         try await process.testActualEnvironmentLogsAndNormalExit()
         try await process.testNonzeroAndMissingEnvironment()
         try await process.testSignalAndLargeOutput()
@@ -132,6 +133,49 @@ final class ProcessChecks {
         try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
         expectThrows(try PythonEnvironment.resolve(at: empty.path))
     }
+    func testProjectRootEnvironmentFallback() async throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let frontend = root.appendingPathComponent("frontend")
+        let backend = root.appendingPathComponent("backend")
+        for directory in [frontend, backend] {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try write("import os,sys\nprint(sys.executable)\nprint(os.getcwd())\nprint(os.environ['VIRTUAL_ENV'])", to: directory)
+        }
+        let runner = ServiceRunner()
+        let services = [service(frontend), service(backend)]
+        for s in services { runner.start(s, projectDirectory: root.path) }
+        let completed = await wait { services.allSatisfy { !runner.isActive($0.id) } }
+        expect(completed)
+        for s in services {
+            let state = runner.snapshot(for: s.id)
+            expectEqual(state.state, .stopped)
+            expectEqual(state.environmentPath, root.appendingPathComponent(".venv").path)
+            expect(state.log.text.contains(root.appendingPathComponent(".venv/bin/python").path))
+            expect(state.log.text.contains(URL(fileURLWithPath: s.workingDirectory).resolvingSymlinksInPath().path))
+        }
+        // A configured project root is required; do not search arbitrary ancestors.
+        expectThrows(try PythonEnvironment.resolve(at: backend.path))
+        // A service-local venv wins even when a root .venv exists.
+        let local = frontend.appendingPathComponent("venv")
+        try FileManager.default.createSymbolicLink(at: local, withDestinationURL: root.appendingPathComponent(".venv"))
+        expectEqual(try PythonEnvironment.resolve(at: frontend.path, projectDirectory: root.path).directory, local.path)
+        try FileManager.default.removeItem(at: local)
+        try FileManager.default.createDirectory(at: local, withIntermediateDirectories: true)
+        expectThrows(try PythonEnvironment.resolve(at: frontend.path, projectDirectory: root.path))
+        try FileManager.default.removeItem(at: local)
+        try FileManager.default.moveItem(at: root.appendingPathComponent(".venv"), to: root.appendingPathComponent("venv"))
+        expectEqual(try PythonEnvironment.resolve(at: frontend.path, projectDirectory: root.path).directory, root.appendingPathComponent("venv").path)
+        try FileManager.default.removeItem(at: root.appendingPathComponent("venv"))
+        do {
+            _ = try PythonEnvironment.resolve(at: frontend.path, projectDirectory: root.path)
+            expect(false)
+        } catch {
+            for base in [frontend, root] {
+                for name in [".venv", "venv"] { expect(error.localizedDescription.contains(base.appendingPathComponent(name).path)) }
+            }
+        }
+    }
+
     func testActualEnvironmentLogsAndNormalExit() async throws {
         let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try write("import sys, os\nprint(sys.executable)\nprint(os.environ['VIRTUAL_ENV'])\nprint('中文🙂', file=sys.stderr)\n", to: root)
