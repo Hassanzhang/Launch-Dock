@@ -183,25 +183,14 @@ private struct LogPanel: View {
                 Toggle("跟随", isOn: $following).toggleStyle(.checkbox).help("取消勾选后暂停自动滚动")
                 Button("复制") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(snapshot.log.text, forType: .string) }.disabled(snapshot.log.text.isEmpty)
                 Button("清空", action: clear).disabled(snapshot.log.text.isEmpty)
-            }.padding(10)
+            }.font(.system(size: 13))
+                .padding(10)
+                .background(Color(nsColor: .windowBackgroundColor))
             Divider()
-            ScrollViewReader { proxy in
-                ScrollView([.vertical, .horizontal]) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(snapshot.log.text.isEmpty ? "本次运行暂无日志" : snapshot.log.text)
-                            .font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
-                            .foregroundStyle(snapshot.log.text.isEmpty ? .secondary : .primary)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                        Color.clear.frame(height: 1).id("end")
-                    }.padding(12)
-                }
-                .onChange(of: snapshot.log.text) { _ in if following { proxy.scrollTo("end", anchor: .bottom) } }
-                .onChange(of: selection) { _ in if following { proxy.scrollTo("end", anchor: .bottom) } }
-                .onChange(of: following) { value in if value { proxy.scrollTo("end", anchor: .bottom) } }
-            }
+            LogOutputView(text: snapshot.log.text, serviceID: selection, following: following)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }.background(Color(nsColor: .textBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

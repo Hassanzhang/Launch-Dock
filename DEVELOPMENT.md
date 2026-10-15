@@ -12,6 +12,7 @@
 | --- | --- | --- |
 | `Sources/LaunchDock/LaunchDockApp.swift` | 单窗口 SwiftUI 入口、窗口捕获、添加项目菜单 | F-007、F-009 / T-001、T-004 |
 | `Sources/LaunchDock/ContentView.swift` | 侧栏、拖拽排序、卡片、日志、删除确认 | F-003、F-005、F-009 / T-001、T-003、T-004 |
+| `Sources/LaunchDock/LogOutputView.swift` | 仅负责日志文本布局、原生双向滚动和跟随位置 | F-005、F-009 / T-010 |
 | `Sources/LaunchDock/ProjectEditor.swift` | 配置表单、目录选择、即时校验 | F-001、F-002 / T-001 |
 | `Sources/LaunchDock/AppModel.swift` | 配置操作、编辑删除约束、正常退出清理与 Dock 重开 | F-007、F-008 / T-001、T-004 |
 | `Sources/LaunchDockCore/Configuration.swift` | Codable 模型、原子存储、环境检测 | F-001、F-002、F-004、F-008 / T-001、T-002 |
@@ -80,6 +81,14 @@ stdout/stderr 在管道入口合并，不标注输出流来源；显示内核读
 按 DESIGN.md 使用 NavigationSplitView、原生控件、SF Symbols、系统字体与语义颜色。卡片空间不足纵向排列；错误保留原文和中文解释；日志支持服务切换、跟随暂停、复制及清空。
 
 运行中的项目暂时禁止编辑整个配置；删除需确认，先清理该项目服务再保存配置删除，不删除项目文件。排序使用原生 List onMove 持久化数组顺序，同时提供右键上移/下移供键盘操作。真实界面操作、浅深色及布局验收因自动化连接失败尚未完成。
+
+## 日志呈现（T-010）
+
+日志面板局部使用 NSViewRepresentable 包装 NSScrollView/NSTextView。关闭宽度跟踪和折行，以 glyph usedRect 与额外空行测量文档大小；文档至少与视口等宽等高，文字原点固定为 (16, 12)。使用指定的 12pt 常规等宽字体链，段落最小/最大行高均为 19.2pt，8 空格 tab 间隔。输出不改变原字符串，不改 ServiceRunner、LogBuffer 或服务配置。
+
+日志更新及视口布局时保存原滚动原点；跟随启用则只滚至底部，保留横向位置；暂停则保留可用范围内的横纵位置。服务切换替换文本，暂停时从左上角显示新服务；空日志显示占位文本。工具栏仍在 SwiftUI VStack 顶部，独立于 NSScrollView。
+
+原生控件布局检查可通过 `swiftc Sources/LaunchDock/LogOutputView.swift Tests/LogOutputChecks.swift -o .build/log-output-checks` 编译后运行，不要求 XCTest；它验证控件尺寸与滚动，不代替真实窗口截图和鼠标操作验收。
 
 ## 构建与验证入口
 

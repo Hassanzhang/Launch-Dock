@@ -134,3 +134,39 @@
 - 本轮未启动或停止用户业务服务、未重启当前应用；需用户正常退出并打开新 .app 生效。启动程序未输出完整、受支持的本地地址时不展示链接。
 - Impeccable context 与 craft-floor 用于保留现有原生界面风格；本轮为 SwiftUI 原生界面，不执行仅针对 Web 的机械检测，不迁移无关设计文档 schema。
 - 本轮为未发布变更，无标签、推送或发布；提交以 T-009 检索。
+
+
+## 2026-10-15 · T-010 · 日志区域布局与滚动
+
+### 范围与实现
+
+- 仅修改 ContentView.swift 中 LogPanel 的内容承载、工具栏字重字号/背景及面板边界；新建 LogOutputView.swift，使用原生 NSScrollView/NSTextView 承载输出。不重构项目详情页，不改变按钮动作或数据来源。
+- 用户后续字号表覆盖原 13pt 日志要求：日志采用 12pt 常规等宽字体、1.6 行高（19.2pt），工具栏 13pt；其他页面元素不改动。
+- 内边距为左右 16pt、上下 12pt，文字从视口左上角开始，最小文档尺寸等于视口，禁用自动折行；原始换行、空格与制表符保留，面板内支持双向滚动。
+- 保留前后端切换、跟随、复制与清空；工具栏位于原生滚动区外，使用系统 windowBackgroundColor 与 textBackgroundColor 作轻微区分，不新增边框/阴影。
+
+### 已执行的原生控件检查
+
+命令：`swiftc Sources/LaunchDock/LogOutputView.swift Tests/LogOutputChecks.swift -o .build/log-output-checks`，随后执行 `.build/log-output-checks`。
+
+结果：通过。直接实例化实际 NSScrollView/NSTextView，并使用 NSLayoutManager 测量，不是文本快照或假控件。
+
+- 空日志占位、文字原点 (16, 12)、document 至少占满视口、左上原点均通过。
+- 原始多行、空格、空行、tab 保留；12pt 非粗体、段落行高及原生 line fragment 实测间隔 19.2pt 通过。
+- 3,000 字符单行未换行，横向文档宽度超过视口，未增加面板高度；2,000 行文档在面板内纵向滚动。
+- 暂停后持续输出保持横纵坐标；20 次连续更新时跟随滚至底部且保留横向坐标；关闭跟随不跳动。
+- 服务切换显示对应文本，清空后回到左上；内容视口缩至 420×240、放大至 1000×600 后不改变文本格式，仍可滚动且跟随状态正确。
+- 使用系统主要文字颜色呈现实际日志，空态用次要颜色。颜色属性检查通过，但不将其等同于截图像素对比度测量。
+
+### 构建与边界验证
+
+- `swift build --product LaunchDock` 和最新 `swift build -c release --product LaunchDock` 通过。
+- `git diff --quiet HEAD -- Sources/LaunchDockCore Sources/ProcessSupport` 通过，确认服务启动、停止、环境解析和日志采集实现无改动；ContentView.swift 的代码差异仅在 LogPanel。
+- 原子更新本地 dist/LaunchDock.app 二进制并 ad-hoc 重签名；`codesign --verify --deep --strict` 与 `plutil -lint` 均通过。
+- 未重复运行服务集成回归，因为本轮未修改该链路。日志视图专项检查覆盖本轮实际变更。
+
+### 未覆盖
+
+原生自动化仍返回原文 `Sky Computer Use native pipe closed before response`。因此真实应用窗口的鼠标操作、工具栏复制/清空的端到端点击、完整窗口拖动缩放、浅深色截图和视觉对比度仍待人工验收。上述视口缩放属于真实控件布局测试，不能冒充用户窗口操作。
+
+不重启用户正在运行的应用或服务。更新本地 .app 后，用户需正常退出再打开使用新界面。本轮不推送或登记发布版本。

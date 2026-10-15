@@ -52,6 +52,13 @@ swift run LaunchDockChecks
 
 检查程序使用真实临时 Python 环境和进程，覆盖配置、异常环境、解释器、日志、并发、退出和父子进程清理。依赖系统 `/usr/bin/python3` 的 `venv` 能力；不依赖 XCTest，适用于本机仅有 Command Line Tools 的环境。
 
+日志布局专项检查（实际 AppKit 控件，覆盖排版、跟随和视口缩放）：
+
+```bash
+swiftc Sources/LaunchDock/LogOutputView.swift Tests/LogOutputChecks.swift -o .build/log-output-checks
+.build/log-output-checks
+```
+
 可选的真实 uvicorn 重载检查（只向 `.build/check-project/.venv` 安装测试依赖，不是应用依赖）：
 
 ```bash
