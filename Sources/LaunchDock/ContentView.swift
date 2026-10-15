@@ -11,11 +11,15 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 List(selection: $model.selection) {
                     ForEach(model.projects) { project in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(project.name).font(.headline).lineLimit(1)
-                            summary(project).font(.caption)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(project.name).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                                .foregroundStyle(Color(nsColor: .labelColor))
+                            summary(project)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                        .listRowBackground(RoundedRectangle(cornerRadius: 8).fill(model.selection == project.id ? Color(nsColor: ServiceStatusPresentation.selectionBackground) : .clear))
                         .tag(project.id)
                         .contextMenu {
                             Button("编辑…") { model.edit(project) }
@@ -69,23 +73,30 @@ struct ContentView: View {
         } message: { Text("将先停止该项目的服务，只删除 LaunchDock 配置，不删除项目文件。") }
     }
     private func summary(_ project: Project) -> some View {
-        let states = project.services.map { runner.snapshot(for: $0.id).state }
-        let running = states.filter { $0 == .running }.count
-        let failed = states.contains(.failed)
-        let transition = states.contains(.starting) || states.contains(.stopping)
-        let title = failed ? "存在异常退出" : (transition ? "正在处理" : (running > 0 ? "\(running) 个服务运行中" : "全部已停止"))
-        return Label(title, systemImage: failed ? "exclamationmark.circle.fill" : "circle.fill")
-            .foregroundStyle(failed ? Color.red : (running > 0 ? Color.green : Color.secondary))
+        HStack(spacing: 12) {
+            ForEach(ServiceRole.allCases) { role in
+                if let service = project.services.first(where: { $0.role == role }) {
+                    let status = ServiceStatusPresentation(state: runner.snapshot(for: service.id).state)
+                    HStack(spacing: 6) {
+                        Circle().fill(status.color).frame(width: 7, height: 7)
+                        Text(role.title).font(.system(size: 12)).foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(role.title)：\(status.title)")
+                }
+            }
+        }
     }
 }
 
-private struct ProjectDetail: View {
+struct ProjectDetail: View {
     let project: Project
     @ObservedObject var model: AppModel
     @ObservedObject var runner: ServiceRunner
     var delete: () -> Void
     @State private var logSelection: UUID?
     private var selectedService: Service? { project.services.first { $0.id == logSelection } ?? project.services.first }
+    @State private var cardsHeight: CGFloat = 0
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top) {
@@ -100,12 +111,21 @@ private struct ProjectDetail: View {
                 Button(role: .destructive, action: delete) { Image(systemName: "trash") }
                     .accessibilityLabel("删除项目").disabled(model.busy || model.loadFailed)
             }
-            ScrollView {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 12) { cards(minimum: 270) }
-                    VStack(spacing: 12) { cards(minimum: 0) }
+            GeometryReader { geometry in
+                Group {
+                    if geometry.size.width >= 552 {
+                        HStack(alignment: .top, spacing: 12) { cards(minimum: 270) }
+                    } else {
+                        VStack(spacing: 12) { cards(minimum: 0) }
+                    }
                 }
-            }.frame(maxHeight: 240)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { content in
+                    Color.clear.preference(key: ServiceCardsHeight.self, value: content.size.height)
+                })
+            }
+            .frame(height: cardsHeight)
+            .onPreferenceChange(ServiceCardsHeight.self) { cardsHeight = $0 }
             if let service = selectedService {
                 LogPanel(services: project.services, selection: Binding(get: { selectedService?.id ?? service.id }, set: { logSelection = $0 }), snapshot: runner.snapshot(for: service.id), clear: { runner.clearLog(service.id) })
             }
@@ -128,18 +148,49 @@ private struct ProjectDetail: View {
     }
 }
 
+private struct ServiceCardsHeight: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// Shared UI mapping keeps each service's sidebar dot and card status consistent.
+struct ServiceStatusPresentation {
+    let state: ServiceState
+    var title: String {
+        switch state {
+        case .stopped: return "已停止"
+        case .starting: return "正在启动"
+        case .running: return "运行中"
+        case .failed: return "启动失败"
+        case .stopping: return "正在停止"
+        }
+    }
+    var color: Color {
+        switch state {
+        case .stopped: return Color(red: 0.61, green: 0.64, blue: 0.69)
+        case .running: return Color(red: 0.16, green: 0.62, blue: 0.44)
+        case .starting, .stopping: return Color(red: 0.87, green: 0.63, blue: 0.26)
+        case .failed: return Color(red: 0.85, green: 0.35, blue: 0.38)
+        }
+    }
+    static let selectionBackground = NSColor(name: NSColor.Name("LaunchDockSidebarSelection")) { appearance in
+        let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return dark ? NSColor(white: 0.23, alpha: 1) : NSColor(red: 0.88, green: 0.884, blue: 0.894, alpha: 1)
+    }
+}
+
 private struct ServiceCard: View {
     let service: Service
     let snapshot: ServiceSnapshot
     let active: Bool
     let busy: Bool
     var action: () -> Void
-    private var color: Color { snapshot.state == .failed ? .red : (snapshot.state == .running ? .green : .secondary) }
+    private var status: ServiceStatusPresentation { ServiceStatusPresentation(state: snapshot.state) }
     var body: some View {
         GroupBox(service.role.title) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label(snapshot.state.title, systemImage: snapshot.state == .failed ? "exclamationmark.circle.fill" : "circle.fill").foregroundStyle(color)
+                    Label(status.title, systemImage: "circle.fill").foregroundStyle(status.color)
                     if let pid = snapshot.pid { Text("PID \(pid)").font(.caption.monospaced()).foregroundStyle(.secondary) }
                     Spacer(minLength: 0)
                     if snapshot.state == .starting || snapshot.state == .stopping { ProgressView().controlSize(.small) }

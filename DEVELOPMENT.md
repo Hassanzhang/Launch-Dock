@@ -90,6 +90,14 @@ stdout/stderr 在管道入口合并，不标注输出流来源；显示内核读
 
 原生控件布局检查可通过 `swiftc Sources/LaunchDock/LogOutputView.swift Tests/LogOutputChecks.swift -o .build/log-output-checks` 编译后运行，不要求 XCTest；它验证控件尺寸与滚动，不代替真实窗口截图和鼠标操作验收。
 
+## 独立状态与卡片占位（T-011）
+
+ContentView 的 ServiceStatusPresentation 仅负责状态文字/颜色：stopped 灰“已停止”、starting 黄“正在启动”、running 绿“运行中”、failed 红“启动失败”、stopping 黄“正在停止”。侧栏按每个配置服务 ID 读取快照，显示圆点与角色；卡片使用同一个映射，不再对项目状态做汇总，也不改变底层状态含义。
+
+右侧保留现有项目标题、灰色 GroupBox、编辑/删除与 LogPanel。仅用真实内容高度替换原卡片 ScrollView 的弹性 240pt 占位，GeometryReader 按实际宽度选择横排/纵排，并用 PreferenceKey 同步卡片实际高度。页边距 20pt、区块 16pt 不变，LogPanel 填满余下空间。与 T-010 相比，LogOutputView 与日志工具栏代码没有变化。
+
+`./scripts/check-project-detail.sh` 在隔离配置、未展示的 NSWindow/NSHostingView 中检查真实详情布局、超长路径、缩放和各状态文字；不启动用户服务，不替代实际参考图视觉验收。
+
 ## 构建与验证入口
 
 - `swift build`：debug 编译。

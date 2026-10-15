@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-未发布 MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建和核心行为检查；原生窗口的交互、截图及用户真实项目验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
+未发布 MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
 
 最低构建目标为 macOS 13；目前仅在 macOS 26.2 / Apple Silicon 验证，不声称已测试其他系统或架构。首版供用户自己的 Mac 使用，不提供公开分发、安装包或公证。
 
@@ -57,6 +57,12 @@ swift run LaunchDockChecks
 ```bash
 swiftc Sources/LaunchDock/LogOutputView.swift Tests/LogOutputChecks.swift -o .build/log-output-checks
 .build/log-output-checks
+```
+
+详情布局专项检查（隔离配置，不启动服务）：
+
+```bash
+./scripts/check-project-detail.sh
 ```
 
 可选的真实 uvicorn 重载检查（只向 `.build/check-project/.venv` 安装测试依赖，不是应用依赖）：
