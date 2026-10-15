@@ -241,7 +241,7 @@ private struct LogPanel: View {
             HStack {
                 Picker("服务日志", selection: $selection) {
                     ForEach(services) { Text($0.role.title).tag($0.id) }
-                }.pickerStyle(.segmented).labelsHidden().frame(maxWidth: 180)
+                }.pickerStyle(.segmented).labelsHidden().fixedSize()
                 Spacer(minLength: 8)
                 Toggle(isOn: $following) { Image(systemName: "arrow.down.to.line") }
                     .toggleStyle(.button).accessibilityLabel("自动跟随")
