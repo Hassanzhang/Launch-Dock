@@ -111,3 +111,13 @@
 - 构建：`swift build -c release --product LaunchDock` 通过；以临时可执行文件复制后原子替换 dist/LaunchDock.app 的二进制，避免截断运行中的旧二进制；本地 ad-hoc 重签名与 `codesign --verify --deep --strict`、`plutil -lint` 通过。
 - 未覆盖：未启动用户的真实前端命令、未重启当前应用或其受管服务、未执行界面按钮验收。当前运行实例需要用户正常退出并重新打开新 .app 才使用新逻辑。
 - 本轮为未发布修复；提交以 T-007 检索，不创建发布版本或标签。
+
+
+## 2026-10-15 · T-008 · Homebrew npm 命令查找
+
+- 原始错误：`zsh:1: command not found: npm`。只读登录及交互 Shell 探测均找到 `/opt/homebrew/bin/npm` 和 `/opt/homebrew/bin/node`；应用原先只继承启动环境，Finder 的最小 PATH 未覆盖这些目录。
+- 修复：Python 虚拟环境 bin 优先，其后保留继承 PATH，再补充 Apple Silicon/Intel 常见 Homebrew 与系统命令目录。不执行用户 Shell 初始化文件，不新增工具安装或版本管理，不改变既有 Python 环境查找规则。
+- 防回归：新增真实 npm/node 调用检查；修复前执行 `PATH=/usr/bin:/bin .build/debug/LaunchDockChecks` 失败（npm 不可解析），修复后同一命令全部通过，最终输出 `PASS all behavioral checks`。检查包含 `command -v npm`、`npm --version`、`node --version` 与虚拟环境 Python 解释器路径；同时运行原有配置、日志和进程清理回归。
+- 构建与产物：`swift build -c release --product LaunchDock` 通过；原子替换本地 dist/LaunchDock.app 可执行文件并进行 ad-hoc 重签名，`codesign --verify --deep --strict` 和 `plutil -lint` 通过。
+- 未覆盖：未运行用户的 npm 项目启动脚本、未安装依赖、未重启当前应用或服务，原生 UI 操作仍待人工验收；本轮没有运行可选 uvicorn 专项。nvm/fnm/asdf 等依赖初始化脚本的环境不在本次 Homebrew 路径修复覆盖范围。
+- 本轮为未发布修复，提交以 T-008 检索，无版本或标签操作。

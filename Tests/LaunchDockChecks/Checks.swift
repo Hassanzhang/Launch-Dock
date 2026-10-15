@@ -36,6 +36,7 @@ struct Checks {
         let process = ProcessChecks()
         try process.testEnvironmentPriorityMissingAndBroken()
         try await process.testProjectRootEnvironmentFallback()
+        try await process.testHomebrewCommandsWithMinimalPath()
         try await process.testActualEnvironmentLogsAndNormalExit()
         try await process.testNonzeroAndMissingEnvironment()
         try await process.testSignalAndLargeOutput()
@@ -174,6 +175,26 @@ final class ProcessChecks {
                 for name in [".venv", "venv"] { expect(error.localizedDescription.contains(base.appendingPathComponent(name).path)) }
             }
         }
+    }
+
+    func testHomebrewCommandsWithMinimalPath() async throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let environment = try PythonEnvironment.resolve(at: root.path)
+        let paths = environment.variables["PATH"]!.split(separator: ":").map(String.init)
+        expectEqual(paths.first, root.appendingPathComponent(".venv/bin").path)
+        for path in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"] { expect(paths.contains(path)) }
+        let installed = ["/opt/homebrew/bin/npm", "/usr/local/bin/npm"].first { FileManager.default.isExecutableFile(atPath: $0) }
+        guard installed != nil else { print("SKIP real npm: Homebrew npm is not installed"); return }
+        let runner = ServiceRunner()
+        let s = service(root, command: "command -v npm && npm --version && node --version && python -c 'import sys; print(sys.executable)'")
+        runner.start(s)
+        let completed = await wait { !runner.isActive(s.id) }
+        expect(completed)
+        let state = runner.snapshot(for: s.id)
+        expectEqual(state.state, .stopped)
+        expect(state.log.text.contains("/bin/npm"))
+        expect(state.log.text.contains(root.appendingPathComponent(".venv/bin/python").path))
+        print("Checked real npm/node lookup with PATH=" + (ProcessInfo.processInfo.environment["PATH"] ?? "<unset>"))
     }
 
     func testActualEnvironmentLogsAndNormalExit() async throws {

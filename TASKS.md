@@ -76,6 +76,16 @@
 - 证据：`swift run LaunchDockChecks` 与 release 构建通过，已重建并验证本地 .app；未执行用户服务启动或重启，见 VALIDATION.md 的 T-007 记录。
 - 实现提交：通过 `git log --oneline --grep='T-007'` 检索。
 
+### T-008 · 修复 Finder 启动时 Homebrew npm 查找失败
+
+- [x] 开发与验证完成。
+- 对应需求：F-004（命令执行环境）。
+- 依赖：T-002。
+- 内容：保留虚拟环境和继承 PATH 优先级，补全 Apple Silicon/Intel Homebrew 与系统命令目录。
+- 验收：在最小系统 PATH 下通过受管启动器找到真实 npm、node，同时 Python 仍使用所选虚拟环境；不加载或修改用户 Shell 初始化文件。
+- 证据：最小 PATH 下真实 npm/node 与虚拟环境 Python 检查、release 构建及本地签名校验通过，见 VALIDATION.md 的 T-008 记录。
+- 实现提交：通过 `git log --oneline --grep='T-008'` 检索。
+
 ## 已有仓库记录
 
 本地初始化提交 `cf66112` 建立 AGENTS.md。该记录为事后追溯说明，不为历史工作补造任务编号或功能验收结果。

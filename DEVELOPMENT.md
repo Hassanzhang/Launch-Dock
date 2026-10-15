@@ -38,7 +38,7 @@
 ## Python 环境与命令
 
 1. 先查找服务工作目录的 `.venv`、`venv`，都不存在时再查找配置的项目根目录的 `.venv`、`venv`；同目录去重，不向任意上级目录递归搜索。首个命中环境的 `bin/python` 必须可执行；损坏时不继续回退。命令仍在服务工作目录执行。
-2. 继承应用进程环境，将环境 `bin` 放在 PATH 首位，设置 VIRTUAL_ENV 和 PYTHONUNBUFFERED=1，移除 PYTHONHOME。
+2. 继承应用进程环境，将环境 `bin` 放在 PATH 首位，设置 VIRTUAL_ENV 和 PYTHONUNBUFFERED=1，移除 PYTHONHOME。继承 PATH 后补充 `/opt/homebrew/bin`、`/opt/homebrew/sbin`、`/usr/local/bin`、`/usr/local/sbin` 与系统命令目录，覆盖 Finder 最小 PATH 下的 Homebrew npm/node；不修改 Shell 初始化文件。
 3. 通过固定 `/bin/zsh -f -c` 执行用户命令；工作目录由 spawn file action 设置，目录不拼接进 shell 命令。
 4. stdin 指向 `/dev/null`，stdout/stderr 合并进入同一非阻塞管道；不提供 PTY 或交互输入。
 

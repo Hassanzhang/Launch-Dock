@@ -101,7 +101,10 @@ public struct PythonEnvironment {
             }
             var variables = ProcessInfo.processInfo.environment
             variables["VIRTUAL_ENV"] = path
-            variables["PATH"] = path + "/bin:" + (variables["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin")
+            // Finder launches may only supply system PATH. Keep venv first and inherited tools ahead of fallbacks.
+            let inheritedPaths = (variables["PATH"] ?? "").split(separator: ":").map(String.init)
+            let standardPaths = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "/usr/local/sbin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+            variables["PATH"] = ([path + "/bin"] + inheritedPaths + standardPaths).joined(separator: ":")
             variables.removeValue(forKey: "PYTHONHOME")
             variables["PYTHONUNBUFFERED"] = "1"
             return PythonEnvironment(directory: path, variables: variables)
