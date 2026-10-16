@@ -267,3 +267,8 @@
 - `./scripts/check-project-editor.sh`、`./scripts/check-project-detail.sh` 和原生日志专项检查通过；尺寸结果与 T-014 一致。详情脚本的兼容 onChange 弃用警告仍存在，未引入服务/界面逻辑改动。
 - README、PRODUCT、DESIGN、DEVELOPMENT、TASKS、AGENTS 与 CHANGELOG 更新为当前 0.1.0 状态；历史轮次的未发布记录保留其当时事实。本地 commit 与注释标签 v0.1.0 登记版本，不创建 GitHub Release、不进行远端推送。
 - 未覆盖范围延续：用户实际业务完整验收、旧 macOS/Intel 设备、深色全窗口与可选 uvicorn 集成。Dock/Finder 若缓存旧图标，可在正常退出重开新 app 后核对；未强制退出用户当前应用。
+
+
+## 2026-10-16 · T-016 / T-017 · 0.1.1 安排文档
+
+仅登记 F-011 DMG 需求、规划技术方案、T-016 实现与 T-017 安装验收任务。已检查文档本地引用、需求/任务编号唯一性及 Git 空白差异，VERSION 仍为 0.1.0；未改动构建脚本或应用代码，未生成 DMG、未执行安装验收、未建立 v0.1.1 标签。所有打包和安装结果保留待办。本轮仅文档提交，不推送；不把 0.2.0 Git 讨论纳入 0.1.1 实现范围。

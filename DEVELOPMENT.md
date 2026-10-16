@@ -127,3 +127,16 @@ ProjectEditor 保留原 candidate 和 Project.validate 数据契约。FocusState
 ## 图标与版本（T-015）
 
 VERSION 保存 0.1.0，构建脚本写入 CFBundleShortVersionString；CFBundleVersion 为 1。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
+
+
+## 0.1.1 DMG 打包方案（规划，F-011）
+
+以下方案尚未实现，不代表已有打包入口：
+
+1. 新增 `scripts/build-dmg.sh`，复用 `scripts/build-app.sh` 生成带图标、版本与本地签名的应用；显示版本继续来自 VERSION。实施时将 VERSION 更新为 0.1.1、CFBundleVersion 更新为 2，验证完成后才登记 v0.1.1；不移动 v0.1.0。
+2. 在 `.build/` 下建立隔离的临时打包目录，复制应用并创建 `Applications -> /Applications` 符号链接。镜像根目录只放应用和 Applications 入口，不混入源码、测试配置或本地凭据。
+3. 使用系统 `hdiutil create` 生成 UDZO 压缩只读镜像，卷名 `LaunchDock 0.1.1`；产物命名 `dist/LaunchDock-0.1.1-arm64.dmg`（当前构建架构）。脚本从实际构建产物读取/核对架构，不将 arm64 标成 universal，也不额外承诺 Intel 支持。
+4. 对产物执行 `hdiutil verify`，只读挂载检查内容、Applications 链接、应用 plist、图标、架构及 codesign 严格验证。脚本失败时清理本次临时目录和挂载，不操作无关磁盘；重复构建不能把旧产物冒充成功结果。
+5. 真实 Finder 中核对两项内容，拖拽安装至 Applications 并验证启动。若已有应用副本，先安排隔离或备份验收，避免覆盖运行实例；只运行测试配置，检查已有配置不被迁移或删除。退出验收实例后卸载本次镜像。
+
+只使用系统工具，不新增第三方 DMG 框架、安装器或应用内 UI。沿用 ad-hoc 签名；DMG 本身不等于 Developer ID 签名或 Apple 公证，其他设备及下载后的 Gatekeeper 行为不作为本版本已验证能力。推送与远端 Release 按用户后续授权执行。
