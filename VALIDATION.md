@@ -272,3 +272,30 @@
 ## 2026-10-16 · T-016 / T-017 · 0.1.1 安排文档
 
 仅登记 F-011 DMG 需求、规划技术方案、T-016 实现与 T-017 安装验收任务。已检查文档本地引用、需求/任务编号唯一性及 Git 空白差异，VERSION 仍为 0.1.0；未改动构建脚本或应用代码，未生成 DMG、未执行安装验收、未建立 v0.1.1 标签。所有打包和安装结果保留待办。本轮仅文档提交，不推送；不把 0.2.0 Git 讨论纳入 0.1.1 实现范围。
+
+
+## 2026-10-16 · T-016 / T-017 · 0.1.1 DMG 实现与验证
+
+### 打包与自动校验
+
+- 新增 scripts/build-dmg.sh，复用应用构建并以系统 hdiutil 打包；VERSION=0.1.1，CFBundleVersion=2。只改打包及版本/说明，Sources 与 Tests 相对上一提交没有变化。
+- 两次正常运行均生成并校验成功：dist/LaunchDock-0.1.1-arm64.dmg，UDZO、只读镜像，约 1.9 MiB，卷名 LaunchDock 0.1.1。
+- 最终产物 SHA-256：d0f97c3b2ba3dfcfe5286776ce2b676fdbcf9c3ae8d7361dc2b0b6729b4cef98。
+- 每次构建都实际 verify、只读挂载，确认 app 与 Applications -> /Applications、0.1.1/build 2、AppIcon 及图标文件一致、arm64 架构、codesign --verify --deep --strict；卸载后才替换最终文件。所有检查通过。
+- 故障注入：在隔离 .build/dmg-qa PATH 中只令 hdiutil verify 返回 77，其余转交系统 hdiutil。脚本按预期失败；之前成功 DMG 的 SHA-256 不变，mktemp 工作目录已删除，无本次挂载遗留。该预期失败不记作正常构建通过。
+- bash -n 两个构建脚本通过。swift run LaunchDockChecks 全部核心行为检查通过；真实 uvicorn 分支仍因未设置 fixture 显式 SKIP。没有修改应用逻辑，因此不重复执行无变化的表单/日志全套视觉检查。
+
+### 真实 Finder 与安装后启动
+
+- 打开已挂载卷，真实 Finder 截图及 AX 显示恰好两项：Applications 和 LaunchDock，应用使用用户提供的图标，镜像不可编辑。
+- 原生拖拽多次受工具状态变化与 `windowNotFoundAtPosition` 影响，未完成；未将失败操作或 Finder 复制安装冒充鼠标拖拽通过。
+- 改用 Finder 原生复制安装：选择镜像内应用、复制，双击 Applications 入口进入应用程序目录并粘贴。AX 显示新增 LaunchDock，文件系统确认 /Applications/LaunchDock.app 存在；其版本为 0.1.1/build 2 且严格签名验证通过。此前 /Applications 不存在同名应用，未覆盖用户安装副本。
+- 从已安装二进制使用独立 LAUNCHDOCK_CONFIG_PATH=.build/dmg-smoke/projects.json 启动，真实应用 AX 显示正常主窗口及空项目引导，没有自动启动服务；通过 Cmd-Q 正常退出。
+- 最后一次拖拽尝试前将本轮安装副本暂移至 .build，尝试仍受工具状态错误影响，随后恢复该副本到 /Applications 并再次校验签名；镜像已卸载。
+- 用户原 projects.json 验收前后 SHA-256 一致：e3ad964605c0a1be6fac2be0b9405c7a8c1fb47f1c3c27326f181e826d41187d。未启动用户业务服务，没有变更其项目配置。
+
+### 交付与未完成项
+
+本地 DMG 和已安装应用可用，开发及打包检查完成；真实鼠标拖拽保留人工验收。因此本轮创建本地实现提交，暂不建立 v0.1.1 标签，不推送、不创建远端 Release。既有 v0.1.0 保持不动。
+
+沿用 macOS 26.2 / Apple Silicon 本机验证；Intel、旧 macOS、来自网络下载的 Gatekeeper 行为、Developer ID 签名与公证未覆盖。DMG 不等于公证安装包。

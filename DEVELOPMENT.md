@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-0.1.0 MVP 已实现；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
+0.1.1 MVP 构建已完成；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
 
 工程使用 Swift Package，最低目标 macOS 13，Swift tools version 5.9。本机实际工具链为 Swift 6.2.3，macOS 26.2（25C56）、arm64、Command Line Tools SDK；未做最低目标系统和 Intel 实机验证。
 
@@ -101,7 +101,7 @@ T-011 保留原项目标题、编辑/删除与 LogPanel；T-012 已将灰色 Gro
 ## 构建与验证入口
 
 - `swift build`：debug 编译。
-- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；读取 VERSION 写入显示版本，build 号为 1。
+- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；读取 VERSION 写入显示版本，build 号为 2。
 - `swift run LaunchDockChecks`：无 XCTest 依赖的可执行行为检查，使用临时目录中的真实 Python 环境与进程。
 - 可选 uvicorn 集成检查入口和前置环境见 [README.md](README.md)。
 
@@ -126,17 +126,15 @@ ProjectEditor 保留原 candidate 和 Project.validate 数据契约。FocusState
 
 ## 图标与版本（T-015）
 
-VERSION 保存 0.1.0，构建脚本写入 CFBundleShortVersionString；CFBundleVersion 为 1。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
+VERSION 保存 0.1.1，构建脚本写入 CFBundleShortVersionString；CFBundleVersion 为 2。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
 
 
-## 0.1.1 DMG 打包方案（规划，F-011）
+## 0.1.1 DMG 打包实现（F-011、T-016、T-017）
 
-以下方案尚未实现，不代表已有打包入口：
+`scripts/build-dmg.sh` 复用 build-app.sh，读取 VERSION=0.1.1 和实际可执行文件的 lipo 架构；当前生成 dist/LaunchDock-0.1.1-arm64.dmg。build-app.sh 写入 CFBundleVersion=2。
 
-1. 新增 `scripts/build-dmg.sh`，复用 `scripts/build-app.sh` 生成带图标、版本与本地签名的应用；显示版本继续来自 VERSION。实施时将 VERSION 更新为 0.1.1、CFBundleVersion 更新为 2，验证完成后才登记 v0.1.1；不移动 v0.1.0。
-2. 在 `.build/` 下建立隔离的临时打包目录，复制应用并创建 `Applications -> /Applications` 符号链接。镜像根目录只放应用和 Applications 入口，不混入源码、测试配置或本地凭据。
-3. 使用系统 `hdiutil create` 生成 UDZO 压缩只读镜像，卷名 `LaunchDock 0.1.1`；产物命名 `dist/LaunchDock-0.1.1-arm64.dmg`（当前构建架构）。脚本从实际构建产物读取/核对架构，不将 arm64 标成 universal，也不额外承诺 Intel 支持。
-4. 对产物执行 `hdiutil verify`，只读挂载检查内容、Applications 链接、应用 plist、图标、架构及 codesign 严格验证。脚本失败时清理本次临时目录和挂载，不操作无关磁盘；重复构建不能把旧产物冒充成功结果。
-5. 真实 Finder 中核对两项内容，拖拽安装至 Applications 并验证启动。若已有应用副本，先安排隔离或备份验收，避免覆盖运行实例；只运行测试配置，检查已有配置不被迁移或删除。退出验收实例后卸载本次镜像。
+脚本使用 mktemp 在 .build 建立独立工作目录，通过 ditto 复制应用，并创建 Applications -> /Applications。hdiutil create 使用卷名 LaunchDock 0.1.1 和 UDZO 格式生成压缩只读 DMG；不添加自定义背景或安装器，不引入第三方依赖。
 
-只使用系统工具，不新增第三方 DMG 框架、安装器或应用内 UI。沿用 ad-hoc 签名；DMG 本身不等于 Developer ID 签名或 Apple 公证，其他设备及下载后的 Gatekeeper 行为不作为本版本已验证能力。推送与远端 Release 按用户后续授权执行。
+生成后执行 hdiutil verify，再只读挂载到本次工作目录中的 mount 路径，校验应用、快捷链接、显示版本/build、图标、架构和签名。先完成全部校验和卸载，再用 mv 替换最终产物；失败保留旧 DMG，EXIT/INT/TERM 处理清理本轮工作目录及挂载，卸载失败时保留临时目录并报错，不强制卸载无关磁盘。
+
+重复构建和注入 verify 失败的检查已执行；实际结果见 VALIDATION.md。Finder 复制安装至 /Applications 与隔离配置启动已验证，鼠标拖拽仍待人工验收，因此 v0.1.1 标签暂不建立。沿用 ad-hoc 签名，不代表 Developer ID 签名或公证；不自动安装、推送或发布 Release。

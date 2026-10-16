@@ -4,9 +4,23 @@
 
 ## 当前状态
 
-当前登记版本 **0.1.0**（build 1，本地标签 `v0.1.0`）。MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
+当前构建版本 **0.1.1**（build 2），DMG 已完成打包及安装启动检查，真实鼠标拖拽验收待完成；最新已登记标签仍为 `v0.1.0`。MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
 
-最低构建目标为 macOS 13；目前仅在 macOS 26.2 / Apple Silicon 验证，不声称已测试其他系统或架构。首版供用户自己的 Mac 使用，不提供公开分发、安装包或公证。
+最低构建目标为 macOS 13；目前仅在 macOS 26.2 / Apple Silicon 验证，不声称已测试其他系统或架构。供用户自己的 Mac 使用；已提供本机 arm64 的 DMG，不包含 Developer ID 签名、公证或公开分发。
+
+## DMG 安装
+
+当前产物：`dist/LaunchDock-0.1.1-arm64.dmg`（Apple Silicon）。打开镜像，将 `LaunchDock.app` 拖入其中的 `Applications` 入口；复制完成后卸载镜像，从应用程序目录启动。替换已有应用前先正常退出，避免影响运行中的服务。
+
+只提供本地 ad-hoc 签名，尚未验证下载后 Gatekeeper 的放行行为；DMG 不代表 Apple 公证。其他系统/架构仍需单独验证。
+
+构建并自动校验 DMG：
+
+```bash
+./scripts/build-dmg.sh
+```
+
+脚本复用下方应用构建入口，按 VERSION 和实际二进制架构命名产物；镜像完整性、只读挂载内容、应用版本、图标、架构与签名全部通过后才替换已有 DMG。脚本不会自动安装应用或发布到 GitHub。
 
 ## 构建与打开
 
@@ -86,4 +100,4 @@ LAUNCHDOCK_UVICORN_FIXTURE="$PWD/.build/check-project" swift run LaunchDockCheck
 | [CHANGELOG.md](CHANGELOG.md) | 未发布变化与后续发布记录 |
 | [AGENTS.md](AGENTS.md) | 语言、SOP 和 Git 协作约定 |
 
-本地仓库默认分支为 `main`；当前版本记录为 `0.1.0`，对应注释标签 `v0.1.0`。未创建 GitHub Release，不含公开分发或公证。
+本地仓库默认分支为 `main`；当前构建为 `0.1.1`，真实鼠标拖拽验收完成前不建立 `v0.1.1`；最新注释标签仍为 `v0.1.0`。未创建 GitHub Release，不含公开分发或公证。
