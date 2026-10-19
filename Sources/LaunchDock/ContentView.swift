@@ -217,16 +217,39 @@ private struct ServiceCard: View {
                 Text("环境：\(path)").font(.system(size: 12, design: .monospaced)).foregroundStyle(.tertiary).lineLimit(1).help(path)
             }
             if service.role == .frontend, snapshot.state == .running, let url = snapshot.browserURL {
-                Link(destination: url) {
-                    Label("打开前端 · \(url.absoluteString)", systemImage: "arrow.up.right.square")
-                        .lineLimit(1).truncationMode(.middle)
-                }.help(url.absoluteString)
-                    .accessibilityLabel("在浏览器打开前端：\(url.absoluteString)")
+                FrontendAccessLink(url: url)
             }
             if let error = snapshot.error {
                 Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
             }
         }.modifier(ServiceCardSurface())
+    }
+}
+
+/// Native link semantics with a full-width hit target and restrained hover feedback.
+struct FrontendAccessLink: View {
+    let url: URL
+    @State private var hovering = false
+    var body: some View {
+        Link(destination: url) {
+            HStack(spacing: 8) {
+                Image(systemName: "globe").foregroundStyle(.secondary)
+                Text(url.absoluteString).foregroundStyle(.primary)
+                    .lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 8)
+                Image(systemName: "arrow.up.right.square")
+                    .foregroundStyle(hovering ? Color.blue : Color.secondary)
+            }
+            .font(.system(size: 13))
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .labelColor).opacity(hovering ? 0.07 : 0.025), in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help("在浏览器打开前端：\(url.absoluteString)")
+        .accessibilityLabel("在浏览器打开前端：\(url.absoluteString)")
     }
 }
 

@@ -138,3 +138,8 @@ VERSION 保存 0.1.1，构建脚本写入 CFBundleShortVersionString；CFBundleV
 生成后执行 hdiutil verify，再只读挂载到本次工作目录中的 mount 路径，校验应用、快捷链接、显示版本/build、图标、架构和签名。先完成全部校验和卸载，再用 mv 替换最终产物；失败保留旧 DMG，EXIT/INT/TERM 处理清理本轮工作目录及挂载，卸载失败时保留临时目录并报错，不强制卸载无关磁盘。
 
 重复构建和注入 verify 失败的检查已执行；实际结果见 VALIDATION.md。Finder 复制安装至 /Applications 与隔离配置启动已验证，鼠标拖拽仍待人工验收，因此 v0.1.1 标签暂不建立。沿用 ad-hoc 签名，不代表 Developer ID 签名或公证；不自动安装、推送或发布 Release。
+
+
+## 前端访问入口（T-018）
+
+ContentView 中的 FrontendAccessLink 保留原生 Link，label 使用撑满可用宽度的 HStack、Spacer 与 contentShape(Rectangle)，使文字、图标与中间留白共同组成点击区域。hover 只改变背景 labelColor 的透明度（0.025 → 0.07）及右侧图标的 secondary → blue；文字保持 primary，沿用原始 URL、help 和无障碍标签。仍仅在前端 running 且存在 browserURL 时显示，不修改解析或启动成功判定。

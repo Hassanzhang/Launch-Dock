@@ -299,3 +299,13 @@
 本地 DMG 和已安装应用可用，开发及打包检查完成；真实鼠标拖拽保留人工验收。因此本轮创建本地实现提交，暂不建立 v0.1.1 标签，不推送、不创建远端 Release。既有 v0.1.0 保持不动。
 
 沿用 macOS 26.2 / Apple Silicon 本机验证；Intel、旧 macOS、来自网络下载的 Gatekeeper 行为、Developer ID 签名与公证未覆盖。DMG 不等于公证安装包。
+
+
+## 2026-10-19 · T-018 · 前端访问入口整行交互
+
+- 仅修改 ContentView.swift 的访问入口视图及相关文档：保留 running/browserURL 显示条件，新增 FrontendAccessLink 的全宽 label、低强调底色、hover 背景与蓝色外链图标。无服务、URL 解析、日志和配置格式改动。
+- `./scripts/check-project-detail.sh` 通过，三档详情日志布局与之前一致；编译仍有 ProjectEditor 兼容 macOS 13 的既有 onChange 弃用警告。
+- `./scripts/build-app.sh` release 构建并 ad-hoc 签名通过；codesign 严格验证通过。当前构建仍为 0.1.1，不建立标签或推送，未覆盖现有 /Applications 安装副本，也未替换旧 DMG。
+- 使用实际 FrontendAccessLink 编译独立 bundle 的隔离原生预览，AX 确认为 link 并保留完整地址说明；真实窗口截图中常态为深色地址文字、灰色图标及极浅背景。点击 URL 与外链图标之间的空白区域（预览截图 800,242），预览通过 SwiftUI openURL 注入的记录器输出 `OPEN_URL http://localhost:4173/`，验证实际 Link 分派而不打开用户浏览器。此预览不连接服务，不读取用户配置。
+- 另一次原生链接点击同样可分派。自动化点击未稳定激活 hover 的截图状态，hover、鼠标移出复原、深色及键盘操作仍待人工验证，不将静态样式检查冒充这些交互通过。未重新验证真实默认浏览器打开或真实业务服务；原 URL/Link destination 逻辑保持不变。
+- 预览进程及其临时 bundle 清理完成；文档链接、编号和 git diff 空白检查通过。新构建入口为 dist/LaunchDock.app，保留用户已安装应用及项目文件。
