@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-0.1.2 MVP 构建已完成；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
+0.1.2 MVP 构建已完成；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，联网更新使用 Sparkle 2.10.0，其余应用模块无第三方运行依赖。
 
 工程使用 Swift Package，最低目标 macOS 13，Swift tools version 5.9。本机实际工具链为 Swift 6.2.3，macOS 26.2（25C56）、arm64、Command Line Tools SDK；未做最低目标系统和 Intel 实机验证。
 
@@ -101,7 +101,7 @@ T-011 保留原项目标题、编辑/删除与 LogPanel；T-012 已将灰色 Gro
 ## 构建与验证入口
 
 - `swift build`：debug 编译。
-- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；读取 VERSION 写入显示版本，build 号为 3。
+- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；读取 VERSION 写入显示版本，build 号为 4。
 - `swift run LaunchDockChecks`：无 XCTest 依赖的可执行行为检查，使用临时目录中的真实 Python 环境与进程。
 - 可选 uvicorn 集成检查入口和前置环境见 [README.md](README.md)。
 
@@ -126,7 +126,7 @@ ProjectEditor 保留原 candidate 和 Project.validate 数据契约。FocusState
 
 ## 图标与版本（T-015）
 
-VERSION 保存当前版本（现为 0.1.2），构建脚本写入 CFBundleShortVersionString；CFBundleVersion 当前为 3。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
+VERSION 保存当前版本（现为 0.1.2），构建脚本写入 CFBundleShortVersionString；CFBundleVersion 当前为 4。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
 
 
 ## 0.1.1 DMG 打包实现（F-011、T-016、T-017）
@@ -145,14 +145,16 @@ VERSION 保存当前版本（现为 0.1.2），构建脚本写入 CFBundleShortV
 ContentView 中的 FrontendAccessLink 保留原生 Link，label 使用撑满可用宽度的 HStack、Spacer 与 contentShape(Rectangle)，使文字、图标与中间留白共同组成点击区域。hover 只改变背景 labelColor 的透明度（0.025 → 0.07）及右侧图标的 secondary → blue；文字保持 primary，沿用原始 URL、help 和无障碍标签。仍仅在前端 running 且存在 browserURL 时显示，不修改解析或启动成功判定。
 
 
-## 0.1.2 本地更新实现（T-019 / T-020）
+## 0.1.2 联网更新（T-021，替代 T-019 / T-020）
 
-Foundation 更新模块校验与复制用户主动选择的安装包，DMG 仅只读挂载，选定唯一 LaunchDock.app 后复制至独立临时目录并卸载。菜单流程使用已有 busy 和 runner.hasActiveServices 保护；校验与复制在后台执行，确认后启动 bundle 内随包签名的独立 helper，再调用 NSApplication.terminate 正常退出。
+SwiftPM 精确锁定官方 Sparkle 2.10.0，Package.resolved 保留版本和 revision。LaunchDock target 链接框架，并设置 @executable_path/../Frameworks rpath；构建脚本从 SwiftPM 产物复制完整 Sparkle.framework，保留官方框架签名、XPC 和 Autoupdate，并将许可证放入 Resources。应用自身仍用本地 ad-hoc 签名。
 
-Helper 等待原应用退出，固定目标 /Applications/LaunchDock.app，在同一父目录创建新副本和备份，通过 rename 替换；使用 NSWorkspace 启动新应用，启动请求失败则恢复备份。无权限不自动提权，失败通过原生错误弹窗说明。共享文件系统事务接受隔离目标用于测试；生产 helper 不接受任意目标路径。用户配置目录不参与复制或替换。
+OnlineUpdateController 由 SwiftUI App 的 StateObject 持有，首次手动检查时创建 SPUStandardUpdaterController/start，默认不自动检查、不自动下载。开始前检查 AppModel.busy 与 runner.hasActiveServices；SPUUpdaterDelegate 的 mayPerformUpdateCheck 再检查并设置 busy，didFinishUpdateCycle 解除会话锁。更新会话期间现有 UI 的 busy 禁用规则阻止新服务和配置变更；正常退出仍保留原服务清理边界。
 
-LocalUpdate.swift 以数字版本/build 顺序比较，读取 plist、lipo 架构、最低 macOS 与 codesign；DMG 只读挂载后复制并卸载，不在镜像上运行程序。每次暂存使用独立 0700 临时目录，卸载状态不确定时保留目录并报错，避免递归删除挂载内容。选定包只复制和检查，不自动执行其主程序。
+Updates/Sparkle.plist 是生产 feed URL、公钥和自动更新策略的唯一配置源，构建时合并进 Info.plist。feed 为 GitHub Releases/latest/download/appcast.xml，归档 URL 固定到对应版本 Release 的 zip；build 4 与先前本地更新的 build 3 区分，版本仍为 0.1.2。Keychain account local.launchdock.app 保存 Ed25519 私钥，仓库中只有公钥，不需要后端服务。
 
-AppModel 的 preparingUpdate 状态配合 AppDelegate 阻止暂存中退出。确认前检查目标版本和写权限、其他运行实例。随包单独签名的 LaunchDockUpdateHelper 复制到临时目录，等待父进程最多 120 秒退出，在固定目标旁创建新副本/备份后 rename 替换；使用 NSWorkspace 创建新实例并等待启动回调，最多 60 秒，失败则回滚并提示。安装事务使用目标参数仅便于隔离文件系统测试；生产 helper 固定 /Applications 目标。
+build-update.sh 使用 ditto 生成带版本/build/架构的 zip，通过官方 generate_appcast 签名并嵌入 Updates/release-notes.html；check-update.swift 使用 CryptoKit 公钥独立验签，核对 XML、长度、包内标识/版本/build/公钥和下载 URL，通过后才复制到 dist/updates。该脚本不发布 Release，也不创建标签。
 
-包签名保持 ad-hoc，只验证完整性；不声称验证发布者身份。独立 helper 的真实用户安装覆盖尚未执行，隔离测试、菜单确认与取消已通过。最低构建目标保持 macOS 13。
+删除 LocalUpdateController、LocalUpdate/UpdateVersion、自研 LaunchDockUpdateHelper、LocalUpdateChecks 以及 preparingUpdate 专属状态和终止分支；原构建脚本只保留删除旧输出 helper 的迁移清理。旧本地安装实现不再是当前架构，不保留双更新器。现有设备/配置不自动迁移或覆盖；旧版需手动或通过旧本地菜单安装本版一次。
+
+隔离 HTTP 更新源用于无更新和断网 UI 验证，只有 QA bundle 修改 feed/本地网络设置；生产配置只使用 HTTPS。正式 GitHub Release 发布和实际下载安装仍待有效授权/凭据及验证，不能将模拟更新源测试冒充线上闭环。

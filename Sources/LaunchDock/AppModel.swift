@@ -10,7 +10,6 @@ final class AppModel: ObservableObject {
     @Published var editing: Project?
     @Published var showingEditor = false
     @Published var busy = false
-    @Published var preparingUpdate = false
     let runner = ServiceRunner()
     let store: ConfigurationStore
     private(set) var loadFailed = false
@@ -60,10 +59,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return false
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if model?.preparingUpdate == true {
-            model?.error = "正在检查并暂存更新包，请等待完成后再退出。"
-            return .terminateCancel
-        }
         guard let model, model.runner.hasActiveServices else { return .terminateNow }
         guard !quitting else { return .terminateLater }
         quitting = true; model.busy = true

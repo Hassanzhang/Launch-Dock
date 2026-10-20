@@ -5,6 +5,7 @@ import SwiftUI
 struct LaunchDockApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var model = AppModel()
+    @StateObject private var updates = OnlineUpdateController()
     var body: some Scene {
         Window("LaunchDock", id: "main") {
             ContentView(model: model, runner: model.runner)
@@ -18,7 +19,7 @@ struct LaunchDockApp: App {
         .defaultSize(width: 1100, height: 750)
         .commands {
             CommandGroup(after: .appInfo) {
-                Button(model.preparingUpdate ? "正在检查更新…" : "安装更新…") { model.installLocalUpdate() }
+                Button("检查更新…") { updates.checkForUpdates(model: model) }
                     .disabled(model.busy)
             }
             CommandGroup(replacing: .newItem) {

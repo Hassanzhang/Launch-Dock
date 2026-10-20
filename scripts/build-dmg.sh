@@ -41,8 +41,8 @@ PLIST="$MOUNT/LaunchDock.app/Contents/Info.plist"
 [[ "$(plutil -extract CFBundleIconFile raw "$PLIST")" == AppIcon ]]
 [[ "$(lipo -archs "$MOUNT/LaunchDock.app/Contents/MacOS/LaunchDock" | tr ' ' '-')" == "$ARCH" ]]
 cmp "$APP/Contents/Resources/AppIcon.icns" "$MOUNT/LaunchDock.app/Contents/Resources/AppIcon.icns"
-[[ -x "$MOUNT/LaunchDock.app/Contents/Helpers/LaunchDockUpdateHelper" ]]
-codesign --verify --strict "$MOUNT/LaunchDock.app/Contents/Helpers/LaunchDockUpdateHelper"
+[[ -d "$MOUNT/LaunchDock.app/Contents/Frameworks/Sparkle.framework" ]]
+[[ ! -e "$MOUNT/LaunchDock.app/Contents/Helpers/LaunchDockUpdateHelper" ]]
 codesign --verify --deep --strict "$MOUNT/LaunchDock.app"
 hdiutil detach "$MOUNT" >/dev/null
 MOUNTED=0

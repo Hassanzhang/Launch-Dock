@@ -348,3 +348,35 @@
 - `bash -n`、文档链接/编号唯一性、git diff 空白检查通过。未创建标签、推送或远端 Release；本地提交按 T-019 / T-020 检索。
 - 未在用户 /Applications 执行实际替换或重新打开；未覆盖完整 helper 链路、系统崩溃/断电、磁盘损坏、Gatekeeper 下载隔离、公证、Intel 或旧 macOS。ad-hoc 签名只保证完整性，用户应选择可信来源安装包。
 - 首次使用需手动安装本次 0.1.2，因为旧版没有该菜单。用户已安装副本保持原状；新 DMG 和 app 保留供检查。后续更新要求更新版本或同版本更高 build。
+
+
+## 2026-10-20 · T-021 · 0.1.2 最终需求：Sparkle 联网更新
+
+### 替换范围
+
+- F-012 根据用户最新要求改为联网检查/下载/安装，版本保持 0.1.2，build 从 3 增至 4。菜单改为“检查更新…”，删除本地 app/dmg 选择流程。
+- 删除 LocalUpdateController.swift、LaunchDockCore/LocalUpdate.swift、LaunchDockUpdateHelper target/源码、LocalUpdateChecks target/测试、preparingUpdate 与旧终止分支；更新布局检查脚本，旧产物 helper 仅保留构建时迁移删除操作。正式 bundle 不含旧 helper；主程序符号检查没有旧 LocalUpdate/UpdateVersion/安装函数。
+- 精确使用官方 Sparkle 2.10.0，Package.resolved 锁定 revision eef1a539a373c1f1a320624b1130fc5de7b2e100。SwiftPM 校验二进制 artifact；框架内含官方安装器/XPC，保留第三方许可证并随应用分发。
+
+### 签名与发布产物
+
+- 使用官方 generate_keys，为 Keychain account local.launchdock.app 生成 Ed25519 签名密钥；私钥仅存 Keychain，未导出、打印或提交。Updates/Sparkle.plist 仅保存公钥、HTTPS 生产源与禁用自动检查/下载策略。
+- build-update.sh 使用官方 generate_appcast 生成 dist/updates/LaunchDock-0.1.2-4-arm64.zip 和 appcast.xml，下载 URL 指向 GitHub Release v0.1.2。check-update.swift 通过 CryptoKit 公钥独立验证真实归档签名，核对 XML、长度、版本/build、公钥、包内标识和 HTTPS 下载地址，通过。
+- 对 zip 修改一个字节且保持长度不变，验证器返回 `Archive signature is invalid`，正确拒绝；不是仅检查字符串或复刻签名实现。
+- build-app.sh、build-update.sh、build-dmg.sh 均通过，最终 DMG 为 dist/LaunchDock-0.1.2-arm64.dmg（build 4）。Sparkle.framework 正确嵌入 Frameworks，otool 确认为 @rpath 链接；应用 codesign --verify --deep --strict、Info.plist lint 通过。
+
+### 真实原生交互（隔离更新源）
+
+- 独立 local.launchdock.online-qa bundle 使用专属项目配置与临时 HTTP 测试源；只有 QA 修改 feed 为 localhost 并允许本地网络，生产配置保持 HTTPS。该测试源不属于产品所需服务器。
+- 实际调用“检查更新…”后，Sparkle 从真实测试源读取当前 build 4 清单，原生弹窗为 `You’re up to date!`，说明当前 0.1.2 已是最新；关闭后编辑/启动按钮恢复可用，验证会话解除 busy。
+- 真实启动 QA 的 Python 测试服务，再点击菜单，提示“请先停止所有服务，再检查和安装更新。”，未进入 Sparkle 下载。正常退出 QA 后 PID 11346 不再存在。
+- 关闭测试 HTTP 服务后再次检查，Sparkle 弹窗为 `Update Error! An error occurred in retrieving update information. Please try again later.`，没有误报已是最新；取消后正常返回且操作可用。
+- 原生工具偶尔报告零尺寸截图错误，刷新状态后上述实际弹窗均已读取确认。QA、测试服务/HTTP 服务及临时测试目录清理完成，未替换用户已安装应用或业务配置。
+
+### 回归与尚未完成
+
+- swift run LaunchDockChecks 全部核心行为通过；真实 uvicorn 检查仍因未提供 fixture 为 SKIP。详情和表单原生布局检查通过，尺寸与之前一致；保留既有 onChange 弃用警告。
+- Shell 语法、Markdown 本地引用、任务 ID 唯一性、Git 空白与暂存边界检查通过。没有将私钥、归档或测试环境放入 Git。
+- 实际公开 GitHub API 确认仓库为 public。生产 appcast 地址当前 HTTP 404，尚未创建 GitHub Release；gh CLI 提示未登录。源代码/签名产物准备不代表线上服务已启用。
+- 线上 Release 发布、从 GitHub 下载并验签、真实安装/重开及跨版本设备更新尚未执行，需有效凭据与用户发布授权；没有冒充端到端更新成功。Apple Developer ID、公证、下载隔离、旧 macOS 和 Intel 仍未覆盖。
+- 本轮仅本地提交，未创建版本标签、推送、上传资产或发布 Release。旧本地更新方案的历史证据保留上节，不再是当前可用功能。
