@@ -2,13 +2,17 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release --product LaunchDock
+swift build -c release --product LaunchDockUpdateHelper
 APP="$PWD/dist/LaunchDock.app"
 APP_VERSION="$(cat VERSION)"
 ICONSET="$PWD/.build/AppIcon.iconset"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$ICONSET"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Helpers" "$ICONSET"
 # Replace atomically so rebuilding never truncates a running executable.
 cp "$(swift build -c release --show-bin-path)/LaunchDock" "$APP/Contents/MacOS/LaunchDock.next"
 mv -f "$APP/Contents/MacOS/LaunchDock.next" "$APP/Contents/MacOS/LaunchDock"
+cp "$(swift build -c release --show-bin-path)/LaunchDockUpdateHelper" "$APP/Contents/Helpers/LaunchDockUpdateHelper.next"
+mv -f "$APP/Contents/Helpers/LaunchDockUpdateHelper.next" "$APP/Contents/Helpers/LaunchDockUpdateHelper"
+codesign --force --sign - "$APP/Contents/Helpers/LaunchDockUpdateHelper"
 for size in 16 32 128 256 512; do
     sips -z "$size" "$size" Assets/AppIcon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
     retina_size=$((size * 2))
@@ -23,7 +27,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>local.launchdock.app</string>
 <key>CFBundleName</key><string>LaunchDock</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
-<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleVersion</key><string>3</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>LSMinimumSystemVersion</key><string>13.0</string>

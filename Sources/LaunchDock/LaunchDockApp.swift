@@ -17,6 +17,10 @@ struct LaunchDockApp: App {
         }
         .defaultSize(width: 1100, height: 750)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button(model.preparingUpdate ? "正在检查更新…" : "安装更新…") { model.installLocalUpdate() }
+                    .disabled(model.busy)
+            }
             CommandGroup(replacing: .newItem) {
                 Button("添加项目…") { model.edit(nil) }
                     .keyboardShortcut("n")

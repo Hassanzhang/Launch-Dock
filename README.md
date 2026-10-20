@@ -4,13 +4,13 @@
 
 ## 当前状态
 
-当前构建版本 **0.1.1**（build 2），DMG 已完成打包及安装启动检查，真实鼠标拖拽验收待完成；最新已登记标签仍为 `v0.1.0`。MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
+当前构建版本 **0.1.2**（build 3），新增本地安装更新菜单；最新已登记标签仍为 `v0.1.0`。MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，无第三方应用依赖。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
 
 最低构建目标为 macOS 13；目前仅在 macOS 26.2 / Apple Silicon 验证，不声称已测试其他系统或架构。供用户自己的 Mac 使用；已提供本机 arm64 的 DMG，不包含 Developer ID 签名、公证或公开分发。
 
 ## DMG 安装
 
-当前产物：`dist/LaunchDock-0.1.1-arm64.dmg`（Apple Silicon）。打开镜像，将 `LaunchDock.app` 拖入其中的 `Applications` 入口；复制完成后卸载镜像，从应用程序目录启动。替换已有应用前先正常退出，避免影响运行中的服务。
+当前产物：`dist/LaunchDock-0.1.2-arm64.dmg`（Apple Silicon）。打开镜像，将 `LaunchDock.app` 拖入其中的 `Applications` 入口；复制完成后卸载镜像，从应用程序目录启动。替换已有应用前先正常退出，避免影响运行中的服务。
 
 只提供本地 ad-hoc 签名，尚未验证下载后 Gatekeeper 的放行行为；DMG 不代表 Apple 公证。其他系统/架构仍需单独验证。
 
@@ -34,6 +34,21 @@ open dist/LaunchDock.app
 ```
 
 脚本读取 `VERSION`，进行 release 构建，将用户提供的 `Assets/AppIcon.png` 转为多尺寸 `.icns`，生成带版本与图标的 `.app` 并进行本地 ad-hoc 签名。输出目录 `dist/` 和构建目录 `.build/` 不进入 Git；脚本不安装应用、不更改系统工具链、不发布版本。
+
+## 安装本地更新（0.1.2）
+
+先手动安装一次 0.1.2；旧版 0.1.1 没有更新菜单。之后从 **LaunchDock → 安装更新…** 选择可信来源的较新 `.app` 或 `.dmg`。应用检查版本/build、应用标识、本机架构、最低系统及代码签名完整性，拒绝降级或相同版本；DMG 根目录须只有一个应用。
+
+先停止所有受管服务。检查期间菜单显示“正在检查更新…”，禁止其他操作及直接退出；确认框会显示新旧版本与 `/Applications/LaunchDock.app`。确认后正常退出，由辅助程序替换并重新打开，安装/打开失败时恢复旧副本；项目配置不参与替换。无写权限或另一个安装副本正在运行时提示处理，不自动提权或结束其他进程。
+
+这是本地更新，未提供联网下载、公证或发布者身份认证；ad-hoc 签名检查仅验证包的完整性。回滚覆盖可检测的安装/启动请求失败，不包含突然断电、强制结束 helper 或启动后的运行期崩溃。
+
+更新专项检查（仅使用临时目录，绝不替换 `/Applications`）：
+
+```bash
+./scripts/build-app.sh
+swift run LocalUpdateChecks "$PWD/dist/LaunchDock.app"
+```
 
 ## 使用
 
@@ -100,4 +115,4 @@ LAUNCHDOCK_UVICORN_FIXTURE="$PWD/.build/check-project" swift run LaunchDockCheck
 | [CHANGELOG.md](CHANGELOG.md) | 未发布变化与后续发布记录 |
 | [AGENTS.md](AGENTS.md) | 语言、SOP 和 Git 协作约定 |
 
-本地仓库默认分支为 `main`；当前构建为 `0.1.1`，真实鼠标拖拽验收完成前不建立 `v0.1.1`；最新注释标签仍为 `v0.1.0`。未创建 GitHub Release，不含公开分发或公证。
+本地仓库默认分支为 `main`；当前构建为 `0.1.2`，完成本地更新完整设备验收前不建立 `v0.1.2`；最新注释标签仍为 `v0.1.0`。未创建 GitHub Release，不含公开分发或公证。

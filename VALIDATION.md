@@ -309,3 +309,42 @@
 - 使用实际 FrontendAccessLink 编译独立 bundle 的隔离原生预览，AX 确认为 link 并保留完整地址说明；真实窗口截图中常态为深色地址文字、灰色图标及极浅背景。点击 URL 与外链图标之间的空白区域（预览截图 800,242），预览通过 SwiftUI openURL 注入的记录器输出 `OPEN_URL http://localhost:4173/`，验证实际 Link 分派而不打开用户浏览器。此预览不连接服务，不读取用户配置。
 - 另一次原生链接点击同样可分派。自动化点击未稳定激活 hover 的截图状态，hover、鼠标移出复原、深色及键盘操作仍待人工验证，不将静态样式检查冒充这些交互通过。未重新验证真实默认浏览器打开或真实业务服务；原 URL/Link destination 逻辑保持不变。
 - 预览进程及其临时 bundle 清理完成；文档链接、编号和 git diff 空白检查通过。新构建入口为 dist/LaunchDock.app，保留用户已安装应用及项目文件。
+
+
+## 2026-10-19 至 2026-10-20 · T-019 / T-020 · 0.1.2 本地安装更新
+
+### 实现与构建
+
+- PRODUCT.md 新增 F-012，任务分为菜单/校验暂存与 helper/回滚；先建立需求、技术方案和任务，再实现。
+- 新增 LocalUpdate.swift（Foundation），LocalUpdateController.swift（原生菜单/选择器/确认），独立 LaunchDockUpdateHelper target。已有 AppModel 添加检查状态，AppDelegate 在暂存中拒绝直接退出；菜单校验期间禁用其他动作。没有修改服务执行、环境解析、日志采集或配置序列化格式。
+- VERSION=0.1.2，CFBundleVersion=3；build-app.sh 单独构建并签名 helper，放入 Contents/Helpers，再签名 app。build-dmg.sh 同时校验 helper 可执行性及签名。
+- `./scripts/build-dmg.sh` 通过，实际输出 dist/LaunchDock-0.1.2-arm64.dmg；hdiutil verify、只读挂载、应用/版本/build/架构/图标及 helper 签名检查通过；应用与 helper 的 codesign 严格验证通过。
+
+### 隔离文件系统检查
+
+命令：`swift run LocalUpdateChecks "$PWD/dist/LaunchDock.app"`。在系统临时目录中复制实际构建、修改测试元数据并重新 ad-hoc 签名，使用模拟版本 0.1.3（不是公开发布版本）；不写入 /Applications。
+
+- 数字版本顺序与同版本 build 升级比较、中文空格路径通过。
+- 拒绝相同/较旧版本、错误应用标识、无效版本格式、被篡改签名与 symlink 应用。
+- `.app` 校验和暂存通过；真实 UDZO DMG 只读挂载、暂存并卸载通过；无效 DMG/多个候选应用的 DMG 拒绝且没有新增临时目录或挂载遗留。
+- 真实文件复制/rename 安装成功；注入重新打开失败后恢复旧应用，版本验证仍为旧版；第一次安装失败时不遗留目标应用。
+- 目标已有相同版本则拒绝，安装目录不可写时不触发启动、不改变旧应用；测试目录权限恢复后清理。
+- 配置哨兵文件内容始终不变，成功/回滚后无 .LaunchDock-new/.LaunchDock-backup 临时副本。
+- 此处启动回调为隔离测试替身，不将其冒充 NSWorkspace 真正启动新版；helper 的父进程等待与真实系统重新打开整条链路尚未覆盖。
+
+### 真实原生菜单交互
+
+使用独立 bundle ID local.launchdock.update-qa 和专属配置，不改变用户原安装/配置。10-19 原生检查因 Mac 锁屏中断，10-20 解锁后继续：
+
+- LaunchDock 菜单 About 后存在“安装更新…”，可打开仅 app/dmg 的原生选择器。
+- 另一个 /Applications 安装实例正在运行时，候选包检查后提示先退出其他实例，不进入安装确认。
+- 启动隔离测试 Python 服务后，点击更新立即提示“请先停止所有服务，再安装本地更新。”，不打开选择器；正常 Cmd-Q 清理测试服务，PID 3001 确认已不存在。
+- 最终代码重新构建的 QA 可选择测试 Candidate.app；原生确认框显示当前 0.1.2（3）、测试更新 0.1.3（3）与 /Applications/LaunchDock.app，提供“安装并重新打开 / 取消”。点击取消后正常返回详情，按钮可用，未启动 helper 或替换应用；QA 正常退出，测试 bundle/候选包/venv 已清理。
+
+### 回归、限制与交付
+
+- `swift run LaunchDockChecks` 所有核心行为通过；实际 uvicorn 因未设置 fixture 仍 SKIP。
+- 详情/编辑器原生布局脚本通过，布局尺寸与之前一致；直接 swiftc 的详情检查仍有已有的 macOS 13 单参数 onChange 弃用警告。
+- `bash -n`、文档链接/编号唯一性、git diff 空白检查通过。未创建标签、推送或远端 Release；本地提交按 T-019 / T-020 检索。
+- 未在用户 /Applications 执行实际替换或重新打开；未覆盖完整 helper 链路、系统崩溃/断电、磁盘损坏、Gatekeeper 下载隔离、公证、Intel 或旧 macOS。ad-hoc 签名只保证完整性，用户应选择可信来源安装包。
+- 首次使用需手动安装本次 0.1.2，因为旧版没有该菜单。用户已安装副本保持原状；新 DMG 和 app 保留供检查。后续更新要求更新版本或同版本更高 build。

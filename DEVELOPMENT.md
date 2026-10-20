@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-0.1.1 MVP 构建已完成；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
+0.1.2 MVP 构建已完成；需求见 [PRODUCT.md](PRODUCT.md)，界面基线见 [DESIGN.md](DESIGN.md)，任务及未完成验收见 [TASKS.md](TASKS.md)。应用采用原生 SwiftUI、Foundation、AppKit 与 Darwin/POSIX，无第三方运行依赖。
 
 工程使用 Swift Package，最低目标 macOS 13，Swift tools version 5.9。本机实际工具链为 Swift 6.2.3，macOS 26.2（25C56）、arm64、Command Line Tools SDK；未做最低目标系统和 Intel 实机验证。
 
@@ -101,7 +101,7 @@ T-011 保留原项目标题、编辑/删除与 LogPanel；T-012 已将灰色 Gro
 ## 构建与验证入口
 
 - `swift build`：debug 编译。
-- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；读取 VERSION 写入显示版本，build 号为 2。
+- `./scripts/build-app.sh`：release 构建，生成 `dist/LaunchDock.app` 并本地 ad-hoc 签名；读取 VERSION 写入显示版本，build 号为 3。
 - `swift run LaunchDockChecks`：无 XCTest 依赖的可执行行为检查，使用临时目录中的真实 Python 环境与进程。
 - 可选 uvicorn 集成检查入口和前置环境见 [README.md](README.md)。
 
@@ -126,7 +126,7 @@ ProjectEditor 保留原 candidate 和 Project.validate 数据契约。FocusState
 
 ## 图标与版本（T-015）
 
-VERSION 保存 0.1.1，构建脚本写入 CFBundleShortVersionString；CFBundleVersion 为 2。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
+VERSION 保存当前版本（现为 0.1.2），构建脚本写入 CFBundleShortVersionString；CFBundleVersion 当前为 3。Assets/AppIcon.png 为用户提供的原始素材，构建时由 macOS sips 生成 16/32/128/256/512pt 的普通与 2x 图片，iconutil 打包到 Contents/Resources/AppIcon.icns，通过 CFBundleIconFile=AppIcon 引用。图标中间产物位于 .build，不添加依赖。可执行文件先复制到 .next 再 mv，避免覆盖截断用户已运行的可执行文件；构建不重启应用或用户服务。
 
 
 ## 0.1.1 DMG 打包实现（F-011、T-016、T-017）
@@ -143,3 +143,16 @@ VERSION 保存 0.1.1，构建脚本写入 CFBundleShortVersionString；CFBundleV
 ## 前端访问入口（T-018）
 
 ContentView 中的 FrontendAccessLink 保留原生 Link，label 使用撑满可用宽度的 HStack、Spacer 与 contentShape(Rectangle)，使文字、图标与中间留白共同组成点击区域。hover 只改变背景 labelColor 的透明度（0.025 → 0.07）及右侧图标的 secondary → blue；文字保持 primary，沿用原始 URL、help 和无障碍标签。仍仅在前端 running 且存在 browserURL 时显示，不修改解析或启动成功判定。
+
+
+## 0.1.2 本地更新实现（T-019 / T-020）
+
+Foundation 更新模块校验与复制用户主动选择的安装包，DMG 仅只读挂载，选定唯一 LaunchDock.app 后复制至独立临时目录并卸载。菜单流程使用已有 busy 和 runner.hasActiveServices 保护；校验与复制在后台执行，确认后启动 bundle 内随包签名的独立 helper，再调用 NSApplication.terminate 正常退出。
+
+Helper 等待原应用退出，固定目标 /Applications/LaunchDock.app，在同一父目录创建新副本和备份，通过 rename 替换；使用 NSWorkspace 启动新应用，启动请求失败则恢复备份。无权限不自动提权，失败通过原生错误弹窗说明。共享文件系统事务接受隔离目标用于测试；生产 helper 不接受任意目标路径。用户配置目录不参与复制或替换。
+
+LocalUpdate.swift 以数字版本/build 顺序比较，读取 plist、lipo 架构、最低 macOS 与 codesign；DMG 只读挂载后复制并卸载，不在镜像上运行程序。每次暂存使用独立 0700 临时目录，卸载状态不确定时保留目录并报错，避免递归删除挂载内容。选定包只复制和检查，不自动执行其主程序。
+
+AppModel 的 preparingUpdate 状态配合 AppDelegate 阻止暂存中退出。确认前检查目标版本和写权限、其他运行实例。随包单独签名的 LaunchDockUpdateHelper 复制到临时目录，等待父进程最多 120 秒退出，在固定目标旁创建新副本/备份后 rename 替换；使用 NSWorkspace 创建新实例并等待启动回调，最多 60 秒，失败则回滚并提示。安装事务使用目标参数仅便于隔离文件系统测试；生产 helper 固定 /Applications 目标。
+
+包签名保持 ad-hoc，只验证完整性；不声称验证发布者身份。独立 helper 的真实用户安装覆盖尚未执行，隔离测试、菜单确认与取消已通过。最低构建目标保持 macOS 13。

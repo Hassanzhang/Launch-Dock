@@ -9,6 +9,8 @@ let package = Package(
         .target(name: "ProcessSupport"),
         .target(name: "LaunchDockCore", dependencies: ["ProcessSupport"]),
         .executableTarget(name: "LaunchDock", dependencies: ["LaunchDockCore"]),
+        .executableTarget(name: "LaunchDockUpdateHelper", dependencies: ["LaunchDockCore"]),
+        .executableTarget(name: "LocalUpdateChecks", dependencies: ["LaunchDockCore"], path: "Tests/LocalUpdateChecks"),
         .executableTarget(name: "LaunchDockChecks", dependencies: ["LaunchDockCore"], path: "Tests/LaunchDockChecks")
     ]
 )
