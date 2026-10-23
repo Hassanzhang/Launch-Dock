@@ -380,3 +380,11 @@
 - 实际公开 GitHub API 确认仓库为 public。生产 appcast 地址当前 HTTP 404，尚未创建 GitHub Release；gh CLI 提示未登录。源代码/签名产物准备不代表线上服务已启用。
 - 线上 Release 发布、从 GitHub 下载并验签、真实安装/重开及跨版本设备更新尚未执行，需有效凭据与用户发布授权；没有冒充端到端更新成功。Apple Developer ID、公证、下载隔离、旧 macOS 和 Intel 仍未覆盖。
 - 本轮仅本地提交，未创建版本标签、推送、上传资产或发布 Release。旧本地更新方案的历史证据保留上节，不再是当前可用功能。
+
+
+## 2026-10-23 · T-021 · v0.1.2 发布登记
+
+- 用户明确授权发布，GitHub CLI 已认证为 Hassanzhang。发布源码基于 1625fa9，新增本轮发布文档提交；未跟踪的 .workbuddy/ 保持原状、不提交。
+- 发布前再次执行 `swift scripts/check-update.swift dist/updates/appcast.xml dist/updates/LaunchDock-0.1.2-4-arm64.zip Updates/Sparkle.plist`，真实归档签名、包内版本/build、清单下载 URL 和长度全部通过。
+- 发布目标：v0.1.2 / build 4，正式 Latest Release；资产为 DMG、签名 ZIP 与 appcast。线上结果随后按实际执行补记。
+- 将真实跨版本安装与配置保留移至发布后设备验收，保持待办；本轮不替换用户已安装应用，不将线上验签当成安装成功。Apple Developer ID、公证、Gatekeeper、旧 macOS、Intel 仍未覆盖。

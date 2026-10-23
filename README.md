@@ -4,13 +4,13 @@
 
 ## 当前状态
 
-当前构建版本 **0.1.2**（build 4），新增 Sparkle 联网检查更新菜单；最新已登记标签仍为 `v0.1.0`。MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，联网更新依赖 Sparkle 2.10.0。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
+当前构建版本 **0.1.2**（build 4），新增 Sparkle 联网检查更新菜单；本次发布标签为 `v0.1.2`。MVP 已实现，使用 `SwiftUI + Foundation` 与少量 Darwin/POSIX 进程启动代码，联网更新依赖 Sparkle 2.10.0。已通过本机构建、核心行为检查及部分隔离窗口交互/截图验证；用户真实项目完整验收仍待完成，详见 [VALIDATION.md](VALIDATION.md)。
 
-最低构建目标为 macOS 13；目前仅在 macOS 26.2 / Apple Silicon 验证，不声称已测试其他系统或架构。供用户自己的 Mac 使用；已提供本机 arm64 的 DMG，不包含 Developer ID 签名、公证或公开分发。
+最低构建目标为 macOS 13；目前仅在 macOS 26.2 / Apple Silicon 验证，不声称已测试其他系统或架构。供用户自己的 Mac 使用；已提供本机 arm64 的 DMG，不包含 Developer ID 签名或公证。
 
 ## DMG 安装
 
-当前产物：`dist/LaunchDock-0.1.2-arm64.dmg`（Apple Silicon）。打开镜像，将 `LaunchDock.app` 拖入其中的 `Applications` 入口；复制完成后卸载镜像，从应用程序目录启动。替换已有应用前先正常退出，避免影响运行中的服务。
+[下载 v0.1.2](https://github.com/Hassanzhang/Launch-Dock/releases/tag/v0.1.2)。本地产物：`dist/LaunchDock-0.1.2-arm64.dmg`（Apple Silicon）。打开镜像，将 `LaunchDock.app` 拖入其中的 `Applications` 入口；复制完成后卸载镜像，从应用程序目录启动。替换已有应用前先正常退出，避免影响运行中的服务。
 
 只提供本地 ad-hoc 签名，尚未验证下载后 Gatekeeper 的放行行为；DMG 不代表 Apple 公证。其他系统/架构仍需单独验证。
 
@@ -39,7 +39,7 @@ open dist/LaunchDock.app
 
 先将本版安装到 Applications。0.1.1 需手动安装；已有 0.1.2 / build 3 的本地更新菜单也可用来安装本版，之后菜单改为 **LaunchDock → 检查更新…**。停止所有受管服务后检查，发现新版可查看说明、下载并安装，项目配置保留。不再选择本地目录或安装包，不默认后台定时检查或自动下载。
 
-生产更新源是公开 GitHub Releases 的 `releases/latest/download/appcast.xml`。当前签名产物已准备，尚未发布 GitHub Release；发布前生产地址不可用，检查会报获取失败，不能冒充“已是最新”。无需本地服务器；验收用本地 HTTP 服务只是模拟测试。
+生产更新源是公开 GitHub Releases 的 `releases/latest/download/appcast.xml`。v0.1.2 发布资产包含清单和签名 ZIP；网络失败时检查会报获取失败，不能冒充“已是最新”。无需本地服务器；验收用本地 HTTP 服务只是模拟测试。
 
 Sparkle 负责签名验证、安装及重新打开；应用嵌入更新公钥，私钥只在本机 Keychain 的 `local.launchdock.app` account。不要丢失或替换该签名密钥，未来版本必须沿用同一公钥；换机器发布前需通过安全方式迁移密钥，不能将私钥提交到 Git。
 
@@ -51,10 +51,10 @@ Sparkle 负责签名验证、安装及重新打开；应用嵌入更新公钥，
 
 产物位于 `dist/updates/`：`LaunchDock-0.1.2-4-arm64.zip` 与 `appcast.xml`。脚本从已锁定依赖中调用官方签名工具，核对 Keychain 公钥与 Updates/Sparkle.plist，生成并独立验证 Ed25519 签名。后续每次发布必须递增 build（build-app.sh 中 CFBundleVersion），不能替换已公开的同名更新包。
 
-### 发布步骤（尚未执行）
+### 后续版本发布步骤
 
-1. 完成实际更新验收，确认源码提交、VERSION、build 与签名产物一致。
-2. 经用户授权后推送源码及 v0.1.2 标签，并完成 `gh auth login`。
+1. 确认源码提交、VERSION、递增的 build 与签名产物一致，完成必要回归并登记未覆盖验收。
+2. 经用户授权后推送源码及 v0.1.2 标签，并确认 GitHub 认证有效。
 3. 在 GitHub Release v0.1.2 上传上述 zip、appcast.xml 和 DMG，先用草稿核对，再正式发布为 Latest。不能只上传 DMG，清单里的 zip URL 必须可下载。
 4. 发布后从生产地址重新下载清单/更新包并验签，再用旧版验证更新完成和配置保留。发布失败或凭据缺失不记作发布成功。
 
@@ -126,4 +126,4 @@ LAUNCHDOCK_UVICORN_FIXTURE="$PWD/.build/check-project" swift run LaunchDockCheck
 | [CHANGELOG.md](CHANGELOG.md) | 未发布变化与后续发布记录 |
 | [AGENTS.md](AGENTS.md) | 语言、SOP 和 Git 协作约定 |
 
-本地仓库默认分支为 `main`；当前构建为 `0.1.2`，完成线上发布与设备验收前不建立 `v0.1.2`；最新注释标签仍为 `v0.1.0`。未创建 GitHub Release，不含公开分发或公证。
+本地仓库默认分支为 `main`；本次发布为 `0.1.2` / build 4，标签 `v0.1.2`。真实跨版本安装仍待验收，发布包未经 Apple 公证。
