@@ -39,7 +39,7 @@ open dist/LaunchDock.app
 
 先将本版安装到 Applications。0.1.1 需手动安装；已有 0.1.2 / build 3 的本地更新菜单也可用来安装本版，之后菜单改为 **LaunchDock → 检查更新…**。停止所有受管服务后检查，发现新版可查看说明、下载并安装，项目配置保留。不再选择本地目录或安装包，不默认后台定时检查或自动下载。
 
-生产更新源是公开 GitHub Releases 的 `releases/latest/download/appcast.xml`。v0.1.2 发布资产包含清单和签名 ZIP；网络失败时检查会报获取失败，不能冒充“已是最新”。无需本地服务器；验收用本地 HTTP 服务只是模拟测试。
+生产更新源是公开 GitHub Releases 的 `releases/latest/download/appcast.xml`。v0.1.2 已发布为 Latest，生产清单、签名 ZIP 和 DMG 下载及验签通过；网络失败时检查会报获取失败，不能冒充“已是最新”。无需本地服务器；验收用本地 HTTP 服务只是模拟测试。
 
 Sparkle 负责签名验证、安装及重新打开；应用嵌入更新公钥，私钥只在本机 Keychain 的 `local.launchdock.app` account。不要丢失或替换该签名密钥，未来版本必须沿用同一公钥；换机器发布前需通过安全方式迁移密钥，不能将私钥提交到 Git。
 

@@ -388,3 +388,15 @@
 - 发布前再次执行 `swift scripts/check-update.swift dist/updates/appcast.xml dist/updates/LaunchDock-0.1.2-4-arm64.zip Updates/Sparkle.plist`，真实归档签名、包内版本/build、清单下载 URL 和长度全部通过。
 - 发布目标：v0.1.2 / build 4，正式 Latest Release；资产为 DMG、签名 ZIP 与 appcast。线上结果随后按实际执行补记。
 - 将真实跨版本安装与配置保留移至发布后设备验收，保持待办；本轮不替换用户已安装应用，不将线上验签当成安装成功。Apple Developer ID、公证、Gatekeeper、旧 macOS、Intel 仍未覆盖。
+
+### 实际线上结果
+
+- 注释标签 `v0.1.2` 指向 `a9eeb6e3ed94a120b92bfc494011f58efe4b9aa1`，main 与标签已推送。后续验证记录提交不移动发布标签。
+- 先创建草稿并上传三个资产，核对服务器 SHA-256 与本地一致，再正式发布为 Latest。GitHub API 确认 `tag_name=v0.1.2`、`draft=false`、`prerelease=false`，发布时间 `2026-10-23T07:02:10Z`（北京时间 15:02:10）。
+- Release：https://github.com/Hassanzhang/Launch-Dock/releases/tag/v0.1.2
+- 从公开生产地址 `https://github.com/Hassanzhang/Launch-Dock/releases/latest/download/appcast.xml` 及清单对应的 v0.1.2 资产 URL 下载三个文件至 `.build/release-verification-v0.1.2/`。首次 DMG 下载遇到 `curl: (18) Transferred a partial file`；重试后完整下载并通过校验。
+- 对线上下载文件执行 check-update.swift：XML、版本 0.1.2/build 4、包标识、下载 URL、长度、Ed25519 签名全部 PASS。下载的 DMG 执行 `hdiutil verify` 为 VALID。三文件 SHA-256 均与发布前本地产物及 GitHub 资产 digest 一致：
+  - ZIP：`e49dd3d399b1d536a9b47e717eb47ea317a579c51dc7ef3a4b1482d848b40c5c`
+  - DMG：`44bead53a18954c883d745ec8e26935f71c3d2c33f2411c8a33db06c644cfe24`
+  - appcast：`b82b4d84df28a8f1becf6d7f7463fb2fd043f8ef346c6e77080ac0a7cb9aaea1`
+- 本轮仅发布和文档变更，复用 T-021 已完成的构建/行为回归；修改文档的本地链接与 `git diff --check` 通过。真实跨版本安装、重新打开及配置保留仍待设备验证。
